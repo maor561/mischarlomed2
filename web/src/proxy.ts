@@ -12,5 +12,6 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!login|_next/static|_next/image|favicon.ico|icon|manifest).*)"],
+  // קבצי האפליקציה (מניפסט, אייקונים, sw.js) פתוחים בלי כניסה, כדי שהטלפון יוכל להתקין אותה
+  matcher: ["/((?!login|_next/static|_next/image|favicon.ico|icon|apple-icon|manifest|sw.js).*)"],
 };
