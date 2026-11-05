@@ -209,7 +209,9 @@ export async function journeyReport(id: number) {
 
   // שלוש תובנות לפי כללים קבועים (בחבילה 5 המנטור יכתוב אותן)
   const lessons: string[] = [];
-  const diff = round2(series.ret.portfolio - series.ret.bench);
+  // הפער מחושב מהמספרים כפי שהם מוצגים (ספרה אחת אחרי הנקודה), כדי שהדו"ח והגרף יראו אותו פער
+  const r1 = (x: number) => Math.round(x * 10) / 10;
+  const diff = r1(r1(series.ret.portfolio) - r1(series.ret.bench));
   if (panic) lessons.push(`המכירה הכי יקרה שלך הייתה של ${panic.symbol}, כשהשוק היה ${Math.abs(panic.marketFromPeak).toFixed(0)}% מתחת לשיא. אילו החזקת, היית מרוויח עוד ₪${Math.round(panic.missedIls).toLocaleString("he-IL")}. מכירה בשפל היא הטעות הכי נפוצה של משקיעים מתחילים.`);
   if (series.maxWeight.pct > 25) lessons.push(`מניה אחת (${series.maxWeight.symbol}) הגיעה ל-${series.maxWeight.pct.toFixed(0)}% מהתיק. כשמניה אחת היא חלק גדול כל כך, מה שקורה לחברה אחת קובע את כל התוצאה. פיזור מגביל את הנזק.`);
   if (allTrades.length === 0) lessons.push("לא ביצעת אף עסקה, והכסף נשאר במזומן. במסע הבא נסה לפחות לקנות את המדד בהתחלה, ולראות מה קורה לו.");

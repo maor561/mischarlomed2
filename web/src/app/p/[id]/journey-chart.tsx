@@ -47,7 +47,8 @@ export default function JourneyChart({ id, version }: { id: string; version: str
 
   if (err) return <div className="card bg-down-soft text-down">{err}</div>;
   if (!s || !view) return <div className="card text-muted">מחשב את הגרף…</div>;
-  const diff = s.ret.portfolio - s.ret.bench;
+  const r1 = (x: number) => Math.round(x * 10) / 10;
+  const diff = r1(r1(s.ret.portfolio) - r1(s.ret.bench)); // כמו בדו"ח המסע
 
   return (
     <div className="space-y-4">
