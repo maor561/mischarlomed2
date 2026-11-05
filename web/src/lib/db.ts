@@ -113,6 +113,18 @@ CREATE TABLE IF NOT EXISTS ledger (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS ledger_pf ON ledger (portfolio_id, id);
+
+-- ===== חבילה 3: מכונת זמן =====
+ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS end_date DATE;
+ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS blind BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS period_name TEXT;
+ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS benchmark TEXT NOT NULL DEFAULT 'SPY';
+-- מדד תשואה משוקלל זמן (בלי השפעת ההפקדות), לזיהוי ירידה מהשיא
+ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS nav DOUBLE PRECISION NOT NULL DEFAULT 1;
+ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS nav_peak DOUBLE PRECISION NOT NULL DEFAULT 1;
+ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS last_value DOUBLE PRECISION;
+ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS dd_alerted BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS last_market_stop DATE;
 `;
 
 let queryFn: Promise<QueryFn> | null = null;

@@ -117,7 +117,7 @@ export function fill(ctx: Ctx, o: Order, d: string, rawPrice: number): void {
   const gross = round2(qty * price);
   const fee = tradeFee(ctx.p.fees, ccy, gross);
   const net = round2(gross - fee);
-  const { costIls } = fifoCost(pos, qty);
+  const { costIls, heldDays } = fifoCost(pos, qty, d);
   const gainIls = round2((ccy === "USD" ? net * fx : net) - costIls);
   const tax = taxDelta(ctx.s, d, gainIls); // שלילי = החזר מס על הפסד
   const taxFromSale = tax > 0 ? round2(ccy === "USD" ? tax / fx : tax) : 0;
@@ -126,7 +126,7 @@ export function fill(ctx: Ctx, o: Order, d: string, rawPrice: number): void {
     cashIls: round2((ccy === "ILS" ? net - taxFromSale : 0) + (tax < 0 ? -tax : 0)),
     cashUsd: ccy === "USD" ? round2(net - taxFromSale) : 0,
     fee: feesIls(fee), tax, fxRate: ccy === "USD" ? fx : null, orderId: o.id,
-    meta: { currency: ccy, gross, feeNative: fee, gainIls, costIls: round2(costIls), type: o.type },
+    meta: { currency: ccy, gross, feeNative: fee, gainIls, costIls: round2(costIls), type: o.type, heldDays },
   });
   Object.assign(o, { filledD: d, fillPrice: price, fillQty: qty });
   close(ctx, o, "filled", null);

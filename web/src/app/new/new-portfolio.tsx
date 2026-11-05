@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import SymbolSearch from "@/components/symbol-search";
 import { api } from "@/lib/format";
@@ -23,12 +23,29 @@ const FEE_ROWS: { k: keyof Omit<FeeProfile, "kind">; label: string; unit: string
   { k: "fxPct", label: "עמלת המרת מט\"ח", unit: "%" },
 ];
 
+const LENGTHS = [
+  { k: "1y", label: "שנה" },
+  { k: "2y", label: "שנתיים" },
+  { k: "5y", label: "5 שנים" },
+  { k: "10y", label: "10 שנים" },
+  { k: "today", label: "עד היום" },
+] as const;
+const BLIND_KINDS = [
+  { k: "stormy", title: "🌪 תקופה סוערת", sub: "כמה חודשים לפני משבר אמיתי" },
+  { k: "calm", title: "😌 תקופה רגילה", sub: "בלי משבר גדול" },
+  { k: "any", title: "🎲 כל תקופה", sub: "1995 עד היום" },
+] as const;
+
 export default function NewPortfolio() {
   const router = useRouter();
-  const [name, setName] = useState("מכונת זמן — קורונה");
+  const sp = useSearchParams();
+  const [name, setName] = useState(sp.get("blind") ? "מסע עיוור" : "מכונת זמן — קורונה");
   const [capital, setCapital] = useState(50000);
   const [mode, setMode] = useState<"time" | "live">("time");
   const [start, setStart] = useState("2020-02-03");
+  const [blind, setBlind] = useState<null | "stormy" | "calm" | "any">(sp.get("blind") ? "stormy" : null);
+  const [length, setLength] = useState<(typeof LENGTHS)[number]["k"]>("2y");
+  const [benchmark, setBenchmark] = useState<"SPY" | "TA125">("SPY");
   const [fees, setFees] = useState<FeeProfile>({ ...FEE_PRESETS.online });
   const [depOn, setDepOn] = useState(false);
   const [dep, setDep] = useState({ amount: 1000, day: 1, autoBuy: "VOO" as string | null });
@@ -43,7 +60,12 @@ export default function NewPortfolio() {
     try {
       const { id } = await api<{ id: number }>("/api/portfolios", {
         method: "POST",
-        json: { name, capital, mode, startDate: mode === "time" ? start : undefined, fees, deposit: depOn ? dep : null },
+        json: {
+          name, capital, mode, fees, deposit: depOn ? dep : null, benchmark,
+          startDate: mode === "time" && !blind ? start : undefined,
+          length: mode === "time" ? (blind && length === "today" ? "2y" : length) : undefined,
+          blind: mode === "time" ? blind : null,
+        },
       });
       router.push(`/p/${id}`);
     } catch (e) {
@@ -76,6 +98,43 @@ export default function NewPortfolio() {
             </div>
           </Field>
           {mode === "time" && (
+            <>
+              <Field label="תקופה">
+                <div className="grid grid-cols-2 gap-2">
+                  <Opt on={!blind} onClick={() => setBlind(null)} title="📅 אני בוחר" sub="תאריך, או תקופה מהרשימה" />
+                  <Opt on={!!blind} onClick={() => { setBlind("stormy"); if (name.startsWith("מכונת זמן")) setName("מסע עיוור"); }} title="🎭 עיוור" sub="אקראי ומוסתר עד הסוף" />
+                </div>
+              </Field>
+              {blind && (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    {BLIND_KINDS.map((b) => (
+                      <Opt key={b.k} on={blind === b.k} onClick={() => setBlind(b.k)} title={b.title} sub={b.sub} />
+                    ))}
+                  </div>
+                  <div className="text-sm rounded-lg p-2.5 bg-time-soft text-time">
+                    🎭 תאריכים ואירועים יוסתרו (&quot;שנה 1 · יום 47&quot;), ובסוף המסע נחשוף באיזו תקופה היית. לא מושלם: מחיר של מניה מוכרת יכול לרמוז על השנה.
+                  </div>
+                </>
+              )}
+              <Field label="אורך המסע" hint="בתאריך הסיום הנגן נעצר ונפתח דו&quot;ח המסע.">
+                <div className="flex gap-1.5 flex-wrap">
+                  {LENGTHS.filter((l) => !(blind && l.k === "today")).map((l) => (
+                    <button key={l.k} type="button" className={`chip text-xs ${length === l.k ? "chip-on" : ""}`} onClick={() => setLength(l.k)}>
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            </>
+          )}
+          <Field label="מדד השוואה" hint="הקו האפור בגרף &quot;מול המדד&quot; ובדו&quot;ח: מה היה קורה אילו כל שקל שהפקדת הלך למדד.">
+            <select className="input" value={benchmark} onChange={(e) => setBenchmark(e.target.value as "SPY" | "TA125")}>
+              <option value="SPY">S&amp;P 500 (מומלץ)</option>
+              <option value="TA125">ת&quot;א-125 (לתיק של מניות ישראליות)</option>
+            </select>
+          </Field>
+          {mode === "time" && !blind && (
             <>
               <Field label="תאריך התחלה">
                 <input className="input num" type="date" value={start} min="1990-01-01" onChange={(e) => setStart(e.target.value)} />

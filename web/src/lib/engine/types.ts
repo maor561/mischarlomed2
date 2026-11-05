@@ -33,6 +33,26 @@ export type Portfolio = {
   fees: FeeProfile;
   deposit: MonthlyDeposit | null;
   createdAt: string;
+  /** מכונת זמן: תאריך סיום המסע (null = עד היום) */
+  endDate: string | null;
+  /** מצב עיוור: התאריכים מוסתרים עד סוף המסע */
+  blind: boolean;
+  /** שם התקופה, לחשיפה בסוף מסע עיוור */
+  periodName: string | null;
+  benchmark: Benchmark;
+  nav: number;
+  navPeak: number;
+  lastValue: number | null;
+  ddAlerted: boolean;
+  /** העצירה האחרונה בגלל תנועת שוק, כדי לא לעצור כל יום בתוך משבר */
+  lastMarketStop: string | null;
+};
+
+export type Benchmark = "SPY" | "TA125";
+/** מדד ההשוואה (נכס לקנייה וירטואלית) ומדד השוק (לזיהוי ימים חריגים) */
+export const BENCH: Record<Benchmark, { asset: string; index: string; label: string }> = {
+  SPY: { asset: "SPY", index: "^GSPC", label: "S&P 500" },
+  TA125: { asset: "^TA125.TA", index: "^TA125.TA", label: "ת\"א-125" },
 };
 
 export type OrderType = "market" | "limit" | "stop";

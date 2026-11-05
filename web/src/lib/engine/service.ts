@@ -5,9 +5,10 @@
 import { query, tx, type Stmt } from "../db";
 import { dividends as getDividends, getHistory, getInstrument, getQuote, splits as getSplits, USD_ILS, type LiveQuote } from "../market";
 import { GTC_DAYS, addDays, convert, round2, todayIL, toIls, tradeFee } from "./money";
-import { estimate, fill, makeCtx, processLive, processRange, triggerOnPrice, validateInput, type Ctx, type Estimate, type OrderInput } from "./process";
+import { estimate, fill, makeCtx, processDay, processLive, processRange, triggerOnPrice, validateInput, type Ctx, type Estimate, type OrderInput } from "./process";
 import { carryLossInto, replay, type State } from "./state";
-import { FEE_PRESETS, type Bar, type Ccy, type FeeProfile, type LedgerEntry, type Market, type MonthlyDeposit, type Order, type Portfolio } from "./types";
+import { BENCH, FEE_PRESETS, type Bar, type Benchmark, type Ccy, type FeeProfile, type LedgerEntry, type Market, type MonthlyDeposit, type Order, type Portfolio } from "./types";
+import { CALM, EVENTS, STORMY } from "../timemachine/events";
 
 export class UserError extends Error {}
 
@@ -23,6 +24,9 @@ function rowToPortfolio(r: R): Portfolio {
     startDate: String(r.start_date), simDate: String(r.sim_date), processedThrough: String(r.processed_through),
     initialCapital: Number(r.initial_capital), fees: json<FeeProfile>(r.fees, FEE_PRESETS.online),
     deposit: json<MonthlyDeposit | null>(r.deposit, null), createdAt: String(r.created_at),
+    endDate: (r.end_date as string) ?? null, blind: Boolean(r.blind), periodName: (r.period_name as string) ?? null,
+    benchmark: (r.benchmark as Benchmark) ?? "SPY", nav: Number(r.nav ?? 1), navPeak: Number(r.nav_peak ?? 1),
+    lastValue: num(r.last_value), ddAlerted: Boolean(r.dd_alerted), lastMarketStop: (r.last_market_stop as string) ?? null,
   };
 }
 
@@ -46,22 +50,23 @@ function rowToEntry(r: R): LedgerEntry {
   };
 }
 
-const PF_COLS = `id,name,mode,start_date::text AS start_date,sim_date::text AS sim_date,processed_through::text AS processed_through,initial_capital,fees,deposit,created_at::text AS created_at`;
+const PF_COLS = `id,name,mode,start_date::text AS start_date,sim_date::text AS sim_date,processed_through::text AS processed_through,initial_capital,fees,deposit,created_at::text AS created_at,
+  end_date::text AS end_date,blind,period_name,benchmark,nav,nav_peak,last_value,dd_alerted,last_market_stop::text AS last_market_stop`;
 const ORDER_COLS = `id,portfolio_id,created_d::text AS created_d,active_from::text AS active_from,live_today,side,symbol,currency,qty,budget,type,price,validity,expires_d::text AS expires_d,status,reason,filled_d::text AS filled_d,fill_price,fill_qty,reserved,why,exit_plan,source,splits_applied`;
 const LEDGER_COLS = `id,portfolio_id,d::text AS d,kind,symbol,qty,price,cash_ils,cash_usd,fee,tax,fx_rate,order_id,meta`;
 
-async function loadPortfolio(id: number): Promise<Portfolio> {
+export async function loadPortfolio(id: number): Promise<Portfolio> {
   const [r] = await query(`SELECT ${PF_COLS} FROM portfolios WHERE id=$1`, [id]);
   if (!r) throw new UserError("התיק לא נמצא");
   return rowToPortfolio(r);
 }
-const loadLedger = async (id: number) => (await query(`SELECT ${LEDGER_COLS} FROM ledger WHERE portfolio_id=$1 ORDER BY id`, [id])).map(rowToEntry);
-const loadOrders = async (id: number, pendingOnly: boolean) =>
+export const loadLedger = async (id: number) => (await query(`SELECT ${LEDGER_COLS} FROM ledger WHERE portfolio_id=$1 ORDER BY id`, [id])).map(rowToEntry);
+export const loadOrders = async (id: number, pendingOnly: boolean) =>
   (await query(`SELECT ${ORDER_COLS} FROM orders WHERE portfolio_id=$1 ${pendingOnly ? "AND status='pending'" : ""} ORDER BY id DESC`, [id])).map(rowToOrder);
 
 /* ---------- נתוני שוק למנוע ---------- */
 
-const yesterdayIL = () => addDays(todayIL(), -1);
+export const yesterdayIL = () => addDays(todayIL(), -1);
 
 export function sessionInfo(q: LiveQuote) {
   const now = Date.now() / 1000;
@@ -71,10 +76,11 @@ export function sessionInfo(q: LiveQuote) {
   return { open: now >= start && now < end && traded, beforeOpen: now < start, start, end };
 }
 
-type Series = { bars: Bar[]; byDate: Map<string, Bar>; splits: Map<string, number>; divs: Map<string, number>; ccy: Ccy };
+export type Series = { bars: Bar[]; byDate: Map<string, Bar>; splits: Map<string, number>; divs: Map<string, number>; ccy: Ccy };
+export type LoadedMarket = Market & { series: Map<string, Series> };
 
-async function buildMarket(p: Portfolio, symbols: Set<string>, to: string): Promise<Market & { series: Map<string, Series> }> {
-  const from = addDays(p.processedThrough, -400); // צריך גם סגירות קודמות (שווי, דמי משמרת)
+export async function buildMarket(p: Portfolio, symbols: Set<string>, to: string, fromOverride?: string): Promise<LoadedMarket> {
+  const from = fromOverride ?? addDays(p.processedThrough, -400); // צריך גם סגירות קודמות (שווי, דמי משמרת)
   const series = new Map<string, Series>();
   const load = async (sym: string) => {
     const meta = await getInstrument(sym);
@@ -173,7 +179,7 @@ async function save(ctx: Ctx, extra: Stmt[] = []) {
 
 const locks = new Map<number, Promise<unknown>>();
 /** פעולה אחת בכל פעם לכל תיק */
-async function withLock<T>(id: number, fn: () => Promise<T>): Promise<T> {
+export async function withLock<T>(id: number, fn: () => Promise<T>): Promise<T> {
   const prev = locks.get(id) ?? Promise.resolve();
   const run = prev.catch(() => {}).then(fn);
   locks.set(id, run);
@@ -211,6 +217,7 @@ async function catchUp(L: Loaded): Promise<Stmt[]> {
 
 /* ---------- פעולות ---------- */
 
+export type JourneyLength = "1y" | "2y" | "5y" | "10y" | "today";
 export type CreateInput = {
   name: string;
   mode: "live" | "time";
@@ -218,18 +225,58 @@ export type CreateInput = {
   capital: number;
   fees: FeeProfile;
   deposit: MonthlyDeposit | null;
+  length?: JourneyLength;
+  blind?: "any" | "stormy" | "calm" | null;
+  benchmark?: Benchmark;
 };
+
+const LEN_DAYS: Record<Exclude<JourneyLength, "today">, number> = { "1y": 365, "2y": 730, "5y": 1826, "10y": 3652 };
+const rand = (a: number, b: number) => a + Math.floor(Math.random() * (b - a + 1));
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400_000);
+const minDate = (a: string, b: string) => (a < b ? a : b);
+
+/** מצב עיוור: בוחר תאריך התחלה אקראי לפי סוג התקופה */
+function pickBlindStart(kind: "any" | "stormy" | "calm", latestStart: string): { start: string; name: string | null } {
+  if (kind === "stormy") {
+    const options = STORMY.filter((s) => addDays(s.peak, -30) <= latestStart);
+    if (!options.length) throw new UserError("אין תקופה סוערת שמתאימה לאורך הזה. נסה מסע קצר יותר");
+    const s = options[rand(0, options.length - 1)];
+    return { start: minDate(addDays(s.peak, -rand(30, 180)), latestStart), name: s.name };
+  }
+  if (kind === "calm") {
+    const options = CALM.filter((c) => c.from <= latestStart);
+    const c = options[rand(0, options.length - 1)];
+    const to = minDate(c.to, latestStart);
+    return { start: addDays(c.from, rand(0, Math.max(0, daysBetween(c.from, to)))), name: c.name };
+  }
+  return { start: addDays("1995-01-03", rand(0, daysBetween("1995-01-03", latestStart))), name: null };
+}
 
 export async function createPortfolio(i: CreateInput): Promise<number> {
   if (!i.name?.trim()) throw new UserError("צריך לתת שם לתיק");
   if (!(i.capital >= 1000 && i.capital <= 100_000_000)) throw new UserError("הון התחלתי בין ₪1,000 ל-₪100,000,000");
   const today = todayIL();
+  const yesterday = addDays(today, -1);
   let start = today;
+  let endDate: string | null = null;
+  let periodName: string | null = null;
+  const blind = i.mode === "time" && !!i.blind;
   if (i.mode === "time") {
-    if (!i.startDate || !/^\d{4}-\d{2}-\d{2}$/.test(i.startDate)) throw new UserError("צריך לבחור תאריך התחלה");
-    if (i.startDate < "1990-01-01") throw new UserError("תאריך ההתחלה המוקדם ביותר: 1990");
-    if (i.startDate >= today) throw new UserError("במכונת זמן תאריך ההתחלה חייב להיות בעבר");
-    start = i.startDate;
+    const len = i.length && i.length !== "today" ? LEN_DAYS[i.length] : blind ? LEN_DAYS["2y"] : null;
+    if (blind) {
+      const pick = pickBlindStart(i.blind!, addDays(yesterday, -(len ?? 730)));
+      start = pick.start;
+      periodName = pick.name;
+    } else {
+      if (!i.startDate || !/^\d{4}-\d{2}-\d{2}$/.test(i.startDate)) throw new UserError("צריך לבחור תאריך התחלה");
+      if (i.startDate < "1990-01-01") throw new UserError("תאריך ההתחלה המוקדם ביותר: 1990");
+      if (i.startDate >= today) throw new UserError("במכונת זמן תאריך ההתחלה חייב להיות בעבר");
+      start = i.startDate;
+    }
+    if (len) {
+      const end = addDays(start, len);
+      endDate = end <= yesterday ? end : null; // מסע שעובר את ההווה נגמר היום
+    }
   }
   if (i.deposit) {
     if (!(i.deposit.amount > 0)) i.deposit = null;
@@ -241,10 +288,11 @@ export async function createPortfolio(i: CreateInput): Promise<number> {
     }
   }
   const processed = i.mode === "time" ? start : addDays(start, -1);
+  const benchmark: Benchmark = i.benchmark === "TA125" ? "TA125" : "SPY";
   const [r] = await query<{ id: number }>(
-    `INSERT INTO portfolios (name,mode,start_date,sim_date,processed_through,initial_capital,fees,deposit)
-     VALUES ($1,$2,$3,$3,$4,$5,$6::jsonb,$7::jsonb) RETURNING id`,
-    [i.name.trim(), i.mode, start, processed, i.capital, JSON.stringify(i.fees), i.deposit ? JSON.stringify(i.deposit) : null],
+    `INSERT INTO portfolios (name,mode,start_date,sim_date,processed_through,initial_capital,fees,deposit,end_date,blind,period_name,benchmark,last_value)
+     VALUES ($1,$2,$3,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9,$10,$11,$5) RETURNING id`,
+    [i.name.trim(), i.mode, start, processed, i.capital, JSON.stringify(i.fees), i.deposit ? JSON.stringify(i.deposit) : null, endDate, blind, periodName, benchmark],
   );
   const id = Number(r.id);
   await query(
@@ -368,18 +416,130 @@ export async function convertCash(id: number, from: Ccy, amount: number) {
   });
 }
 
-/** מכונת זמן: מקדם את התיק עד התאריך to (לא יותר מאתמול) */
-export async function advance(id: number, to: string) {
+/* ---------- מכונת זמן: קידום עם עצירות ---------- */
+
+/** שווי התיק בשקלים ביום d */
+export function valueOn(s: State, m: Market, d: string): number {
+  const fx = m.fx(d);
+  let v = s.cash.ILS + s.cash.USD * fx;
+  for (const pos of s.positions.values()) v += pos.qty * (m.closeOn(pos.symbol, d) ?? 0) * (pos.currency === "USD" ? fx : 1);
+  return v;
+}
+
+/** שינוי יומי של מדד השוק, וכמה הוא מתחת לשיא של השנה האחרונה */
+function marketMove(m: LoadedMarket, sym: string, d: string): { change: number; fromPeak: number } | null {
+  const s = m.series.get(sym);
+  const bar = s?.byDate.get(d);
+  if (!s || !bar) return null;
+  const i = s.bars.indexOf(bar);
+  if (i < 1) return null;
+  const hi = Math.max(...s.bars.slice(Math.max(0, i - 252), i + 1).map((b) => b.close));
+  return { change: round2((bar.close / s.bars[i - 1].close - 1) * 100), fromPeak: round2((bar.close / hi - 1) * 100) };
+}
+
+export type StopPrefs = Partial<Record<"orders" | "market" | "drawdown" | "events" | "corporate" | "month", boolean>>;
+export type Stop = {
+  kind: "orders" | "market" | "drawdown" | "event" | "corporate" | "month" | "end" | "present";
+  d: string;
+  title: string;
+  body: string;
+  items: string[];
+  marketLabel: string;
+  marketChange: number | null;
+  marketFromPeak: number | null;
+  dayChange: number | null;
+  fromPeak: number;
+};
+
+const ORDER_OUTCOME: Record<string, string> = { filled: "בוצעה", rejected: "נדחתה", expired: "פגה", cancelled: "בוטלה" };
+function describeOrder(o: Order): string {
+  const what = `${o.side === "buy" ? "קנייה" : "מכירה"} ${o.fillQty ?? o.qty ?? ""} ${o.symbol}`;
+  if (o.status === "filled") return `${what} בוצעה ב-${o.currency === "USD" ? "$" : "₪"}${o.fillPrice}`;
+  return `${what} ${ORDER_OUTCOME[o.status] ?? o.status}${o.reason ? `: ${o.reason}` : ""}`;
+}
+
+/** מקדם עד days ימים קדימה, ועוצר ביום הראשון שבו מתקיים אחד מתנאי העצירה */
+export async function advanceUntil(id: number, days: number, prefs: StopPrefs = {}) {
+  if (!(days >= 1 && days <= 3700)) throw new UserError("מספר ימים לא תקין");
   return withLock(id, async () => {
     const p0 = await loadPortfolio(id);
     if (p0.mode !== "time") throw new UserError("קידום זמן אפשרי רק בתיק מכונת זמן");
-    const target = to > yesterdayIL() ? yesterdayIL() : to;
-    if (target <= p0.simDate) throw new UserError("כבר הגעת להווה. מכאן אפשר להמשיך רק בתיק חי");
-    const L = await load(id, [], target);
-    processRange(L.ctx, L.p.simDate, target);
-    await save(L.ctx, [{ text: `UPDATE portfolios SET sim_date=$2, processed_through=$2 WHERE id=$1`, params: [id, target] }]);
-    return { from: p0.simDate, to: target, entries: L.ctx.entries.length };
+    const limit = p0.endDate ? minDate(p0.endDate, yesterdayIL()) : yesterdayIL();
+    if (p0.simDate >= limit) {
+      throw new UserError(p0.endDate && p0.simDate >= p0.endDate ? "המסע הסתיים. הדו\"ח מחכה בלשונית \"דו\"ח המסע\"" : "כבר הגעת להווה. מכאן אפשר להמשיך רק בתיק חי");
+    }
+    const target = minDate(addDays(p0.simDate, Math.floor(days)), limit);
+    const bench = BENCH[p0.benchmark];
+    const L = await load(id, [bench.index], target);
+    const { ctx, m, p } = L;
+
+    let nav = p.nav, peak = p.navPeak, dd = p.ddAlerted, lastMkt = p.lastMarketStop;
+    let lastV = p.lastValue ?? valueOn(ctx.s, m, p.simDate);
+    let stop: Stop | null = null;
+    let d = p.simDate;
+    while (d < target && !stop) {
+      d = addDays(d, 1);
+      const before = ctx.orders.filter((o) => o.status === "pending");
+      const n0 = ctx.entries.length;
+      processDay(ctx, d);
+      const fresh = ctx.entries.slice(n0);
+
+      let dayChange: number | null = null;
+      if (m.bar(USD_ILS, d) || m.bar(bench.index, d)) {
+        const V = valueOn(ctx.s, m, d);
+        const dep = fresh.filter((e) => e.kind === "deposit").reduce((a, e) => a + e.cashIls, 0);
+        if (lastV > 0) {
+          nav *= (V - dep) / lastV;
+          dayChange = round2(((V - dep) / lastV - 1) * 100);
+        }
+        lastV = V;
+        if (nav > peak) {
+          peak = nav;
+          dd = false;
+        }
+      }
+      const fromPeak = round2((nav / peak - 1) * 100);
+      const mk = marketMove(m, bench.index, d);
+      const ev = p.blind ? undefined : EVENTS.find((e) => e.d === d);
+      const done = before.filter((o) => o.status !== "pending");
+      const base = { d, items: done.map(describeOrder), marketLabel: bench.label, marketChange: mk?.change ?? null, marketFromPeak: mk?.fromPeak ?? null, dayChange, fromPeak };
+      // תנועה של 4%+ עוצרת, אבל בתוך משבר לא עוצרים שוב 5 ימים אחרי עצירה קודמת, אלא אם התנועה קיצונית (7%+)
+      const big = mk && Math.abs(mk.change) >= 4 && (!lastMkt || daysBetween(lastMkt, d) > 5 || Math.abs(mk.change) >= 7);
+
+      if (prefs.market && big) {
+        lastMkt = d;
+        stop = { ...base, kind: "market", title: `${bench.label} ${mk!.change > 0 ? "זינק" : "צנח"} ${Math.abs(mk!.change).toFixed(1)}% ביום אחד`, body: ev ? `${ev.title}. ${ev.body}` : "" };
+      } else if (prefs.events && ev) {
+        stop = { ...base, kind: "event", title: ev.title, body: ev.body };
+      } else if (prefs.drawdown && !dd && fromPeak <= -10) {
+        dd = true;
+        stop = { ...base, kind: "drawdown", title: `התיק שלך ירד ${Math.abs(fromPeak).toFixed(1)}% מהשיא`, body: "זה הרגע שבו הרבה משקיעים מוכרים מפחד. לפני שאתה מחליט משהו, כדאי לבדוק: האם משהו השתנה בסיבה שבגללה קנית?" };
+      } else if (prefs.orders && done.length) {
+        stop = { ...base, kind: "orders", title: done.length === 1 ? "פקודה הסתיימה" : `${done.length} פקודות הסתיימו`, body: "" };
+      } else if (prefs.corporate && fresh.some((e) => e.kind === "dividend" || e.kind === "split")) {
+        const e = fresh.find((x) => x.kind === "dividend" || x.kind === "split")!;
+        stop = { ...base, kind: "corporate", title: e.kind === "dividend" ? `התקבל דיבידנד מ-${e.symbol}` : `${e.symbol} פוצלה`, body: "" };
+      } else if (prefs.month && d.endsWith("-01")) {
+        stop = { ...base, kind: "month", title: "תחילת חודש חדש", body: "" };
+      }
+      if (!stop && d === limit) {
+        stop = p.endDate && d === p.endDate
+          ? { ...base, kind: "end", title: "🏁 הגעת לסוף המסע", body: "דו\"ח המסע מוכן." }
+          : { ...base, kind: "present", title: "הגעת להווה", body: "מכאן הזמן ממשיך רק במציאות. אפשר לפתוח את הדו\"ח, או לפתוח תיק חי." };
+      }
+    }
+    await save(ctx, [{
+      text: `UPDATE portfolios SET sim_date=$2, processed_through=$2, nav=$3, nav_peak=$4, last_value=$5, dd_alerted=$6, last_market_stop=$7 WHERE id=$1`,
+      params: [id, d, nav, peak, lastV, dd, lastMkt],
+    }]);
+    return { from: p0.simDate, to: d, entries: ctx.entries.length, stop };
   });
+}
+
+/** מקדם עד תאריך, בלי עצירות (לבדיקות ולכפתורי צעד) */
+export async function advance(id: number, to: string) {
+  const p = await loadPortfolio(id);
+  return advanceUntil(id, Math.max(1, daysBetween(p.simDate, to)), {});
 }
 
 /* ---------- תצוגה ---------- */

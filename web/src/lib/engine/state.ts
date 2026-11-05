@@ -32,18 +32,20 @@ function year(s: State, d: string): YearTax {
 }
 
 /** עלות FIFO של מכירת qty מניות, בלי לשנות את המצב */
-export function fifoCost(pos: Position, qty: number): { costIls: number; costCcy: number } {
+export function fifoCost(pos: Position, qty: number, onD?: string): { costIls: number; costCcy: number; heldDays: number | null } {
   let left = qty,
     costIls = 0,
-    costCcy = 0;
+    costCcy = 0,
+    dayShares = 0;
   for (const lot of pos.lots) {
     if (left <= 0) break;
     const take = Math.min(left, lot.qty);
     costIls += (lot.costIls * take) / lot.qty;
     costCcy += (lot.costCcy * take) / lot.qty;
+    if (onD) dayShares += take * ((Date.parse(onD) - Date.parse(lot.d)) / 86400_000);
     left -= take;
   }
-  return { costIls, costCcy };
+  return { costIls, costCcy, heldDays: onD && qty ? Math.round(dayShares / qty) : null };
 }
 
 /** מגן מס שעובר לשנה y: הפסדים משנים קודמות שעוד לא קוזזו */

@@ -41,7 +41,7 @@ function synthMarket(x: Synth): Market {
 }
 
 function pf(over: Partial<Portfolio> = {}): Portfolio {
-  return { id: 1, name: "t", mode: "time", startDate: "2024-01-01", simDate: "2024-01-01", processedThrough: "2024-01-01", initialCapital: 100000, fees: { ...FEE_PRESETS.online, kind: "custom", ilPct: 0.1, ilMin: 5, usPct: 0.1, usMin: 2 }, deposit: null, createdAt: "", ...over };
+  return { id: 1, name: "t", mode: "time", startDate: "2024-01-01", simDate: "2024-01-01", processedThrough: "2024-01-01", initialCapital: 100000, fees: { ...FEE_PRESETS.online, kind: "custom", ilPct: 0.1, ilMin: 5, usPct: 0.1, usMin: 2 }, deposit: null, createdAt: "", endDate: null, blind: false, periodName: null, benchmark: "SPY", nav: 1, navPeak: 1, lastValue: null, ddAlerted: false, lastMarketStop: null, ...over };
 }
 
 let oid = 1;

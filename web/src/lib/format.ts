@@ -12,8 +12,17 @@ export function signed(n: number, ccy = "ILS", digits = 2): string {
 
 export const pct = (n: number, digits = 1) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(n).toFixed(digits)}%`;
 
+/** במסע עיוור השרת מחזיר "@ימים מההתחלה" במקום תאריך */
+export function blindLabel(d: string): string {
+  const n = Number(d.slice(1));
+  return `שנה ${Math.floor(n / 365) + 1} · יום ${(n % 365) + 1}`;
+}
+
+export const isBlindDate = (d: string | null | undefined) => !!d && d.startsWith("@");
+
 export function dateHe(d: string | null | undefined): string {
   if (!d) return "—";
+  if (d.startsWith("@")) return blindLabel(d);
   const [y, m, day] = d.split("-");
   return `${Number(day)}.${Number(m)}.${y}`;
 }

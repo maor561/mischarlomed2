@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מכונת הזמן — סקיצה 03</title>
+<style>
+  :root{
+    --bg:#f4f6fa; --card:#fff; --ink:#1b2333; --muted:#6b7488; --line:#e3e7ef;
+    --brand:#2753d6; --brand-soft:#e9eefc; --up:#0f8a4f; --up-soft:#e5f5ec;
+    --down:#c8372d; --down-soft:#fbeceb; --warn:#b26a00; --warn-soft:#fff4e0;
+    --time:#6b3fd1; --time-soft:#f0eafc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
+  .sketch-banner{background:#222;color:#fff;text-align:center;padding:6px;font-size:12px}
+  header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .logo{font-weight:700;font-size:18px}.logo span{color:var(--brand)}
+  nav{display:flex;gap:4px;flex-wrap:wrap}
+  nav button{border:0;background:none;padding:8px 12px;border-radius:8px;cursor:pointer;font:inherit;color:var(--muted)}
+  nav button.on{background:var(--brand-soft);color:var(--brand);font-weight:600}
+  main{padding:18px 20px;max-width:1200px;margin:auto}
+  .page{display:none}.page.on{display:block}
+  h2{font-size:18px;margin:0 0 4px}
+  .lead{color:var(--muted);margin:0 0 14px}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g-main{grid-template-columns:2fr 1fr}
+  @media(max-width:900px){.g2,.g3,.g-main{grid-template-columns:1fr}.g4{grid-template-columns:1fr 1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card h3{margin:0 0 10px;font-size:15px}
+  .num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+  .up{color:var(--up)}.down{color:var(--down)}.muted{color:var(--muted)}
+  .sub{font-size:12px;color:var(--muted)}
+  .btn{display:inline-block;padding:9px 14px;border:0;border-radius:8px;background:var(--brand);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+  .btn.ghost{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+  .btn.time{background:var(--time)}
+  .chip{border:1px solid #cdbff2;background:#fff;border-radius:8px;padding:6px 10px;font:inherit;cursor:pointer}
+  .chip.on{background:var(--time);color:#fff;border-color:var(--time)}
+  .alert{padding:10px 12px;border-radius:8px;font-size:13px}
+  .alert.warn{background:var(--warn-soft);color:#6b4100}
+  .alert.info{background:var(--brand-soft);color:#1d3c9e}
+  .alert.time{background:var(--time-soft);color:var(--time)}
+  .alert.ok{background:var(--up-soft);color:#0b5a34}
+  .decide{border:2px dashed var(--warn);background:var(--warn-soft);border-radius:10px;padding:10px 14px;margin-top:12px;font-size:13px}
+  .decide b{color:var(--warn)}
+  .note{font-size:12px;color:var(--muted);margin-top:22px;border-top:1px dashed var(--line);padding-top:10px}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  input,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+  .opt{border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;background:#fff}
+  .opt.on{border-color:var(--time);background:var(--time-soft)}
+  .opt b{display:block}.opt small{color:var(--muted)}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right}
+  th{font-size:12px;color:var(--muted);font-weight:600}
+
+  /* פס הזמן */
+  .timebar{background:var(--time-soft);border:1px solid #ddd2f7;border-radius:12px;padding:12px 14px}
+  .tb-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .date{font-size:20px;font-weight:700;color:var(--time)}
+  .play{width:44px;height:44px;border-radius:50%;border:0;background:var(--time);color:#fff;font-size:18px;cursor:pointer}
+  .progress{height:8px;background:#fff;border-radius:4px;overflow:hidden;margin-top:10px;position:relative}
+  .progress i{display:block;height:100%;background:var(--time)}
+  .progress b{position:absolute;top:-3px;width:3px;height:14px;background:var(--warn);border-radius:2px}
+  .stops{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;font-size:12px}
+  .stops label{display:flex;align-items:center;gap:4px;margin:0;color:var(--ink);background:#fff;border:1px solid #ddd2f7;border-radius:14px;padding:3px 9px}
+  .stops input{width:auto}
+
+  /* עצירה */
+  .overlay{background:rgba(27,35,51,.35);border-radius:14px;padding:30px 14px;display:grid;place-items:center}
+  .modal{background:#fff;border-radius:14px;max-width:560px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.25);overflow:hidden}
+  .modal .top{background:var(--down);color:#fff;padding:14px 18px}
+  .modal .top .d{opacity:.85;font-size:13px}
+  .modal .top h3{margin:4px 0 0;font-size:18px}
+  .modal .body{padding:14px 18px}
+  .modal .actions{display:flex;gap:8px;flex-wrap:wrap;padding:0 18px 16px}
+  .mini{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
+  .mini div{background:var(--bg);border-radius:8px;padding:8px;text-align:center}
+  .mini b{display:block;font-size:16px}
+
+  /* גרפים */
+  .chart svg{width:100%;height:240px}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap;margin-top:6px}
+  .dot{display:inline-block;width:12px;height:3px;vertical-align:middle;margin-left:4px}
+  .ev{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+  .ev .d{color:var(--time);font-weight:600;white-space:nowrap}
+  .ev .tag{font-size:11px;padding:1px 7px;border-radius:10px;background:var(--down-soft);color:var(--down);white-space:nowrap;height:fit-content}
+  .ev .tag.g{background:var(--up-soft);color:var(--up)}
+  .ev .tag.n{background:var(--bg);color:var(--muted)}
+
+  /* דו"ח */
+  .kpi .v{font-size:24px;font-weight:700}
+  .reveal{background:linear-gradient(135deg,#6b3fd1,#2753d6);color:#fff;border-radius:14px;padding:18px 20px}
+  .reveal h3{margin:0 0 4px;font-size:20px}
+  .lesson{display:flex;gap:10px;padding:8px 0}
+  .lesson i{font-style:normal;font-size:18px}
+</style>
+</head>
+<body>
+<div class="sketch-banner">סקיצה 03 · מכונת הזמן. המספרים להמחשה. משבצות צהובות מקווקוות = החלטה שמחכה לך.</div>
+<header>
+  <div class="logo">📈 מסחר<span>־לומד</span></div>
+  <nav>
+    <button class="on" data-p="bar">① פס הזמן והנגן</button>
+    <button data-p="stop">② עצירה באירוע</button>
+    <button data-p="chart">③ התיק מול המדד</button>
+    <button data-p="blind">④ מצב עיוור</button>
+    <button data-p="report">⑤ דו"ח סיום</button>
+    <button data-p="start">⑥ פתיחת מסע</button>
+  </nav>
+</header>
+
+<main>
+<!-- ① פס הזמן -->
+<section class="page on" id="bar">
+  <h2>פס הזמן והנגן</h2>
+  <p class="lead">מחליף את ארבעת הכפתורים של היום. אפשר לקפוץ צעד, או ללחוץ ▶ ולתת לזמן לרוץ. הנגן עוצר לבד כשקורה משהו שכדאי לעצור בגללו.</p>
+  <div class="timebar">
+    <div class="tb-row">
+      <button class="play" title="נגן">▶</button>
+      <div>
+        <div class="sub">התאריך בסימולציה</div>
+        <div class="date num">יום שישי, 6.3.2020</div>
+      </div>
+      <span style="flex:1"></span>
+      <span class="sub">מהירות:</span>
+      <button class="chip">יום בשנייה</button>
+      <button class="chip on">שבוע בשנייה</button>
+      <button class="chip">חודש בשנייה</button>
+      <span class="sub" style="margin-inline-start:8px">צעד:</span>
+      <button class="chip">+יום</button><button class="chip">+שבוע</button><button class="chip">+חודש</button>
+    </div>
+    <div class="progress"><i style="width:7%"></i><b style="right:3%"></b><b style="right:6%"></b></div>
+    <div class="row sub" style="display:flex;justify-content:space-between;margin-top:4px"><span class="num">3.2.2020 · התחלה</span><span>יום 33 מתוך 731 · סוף המסע 3.2.2022</span></div>
+    <div class="stops">
+      <span class="sub" style="align-self:center">לעצור כש:</span>
+      <label><input type="checkbox" checked> פקודה בוצעה / נדחתה / פגה</label>
+      <label><input type="checkbox" checked> השוק זז ±4% ביום</label>
+      <label><input type="checkbox" checked> התיק ירד 10% מהשיא</label>
+      <label><input type="checkbox" checked> אירוע היסטורי</label>
+      <label><input type="checkbox"> דיבידנד / פיצול</label>
+      <label><input type="checkbox"> תחילת חודש</label>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="alert time">⏸ בזמן שהנגן רץ, אי אפשר לשלוח פקודות. לוחצים ⏸ (או מקש רווח), פועלים, וממשיכים. ככה לא מפספסים כלום בגלל שהמסך זז.</div>
+    <div class="alert info">📍 הסימנים הכתומים על פס ההתקדמות הם אירועים שכבר עברת. לחיצה עליהם פותחת את ההסבר שוב. אירועים עתידיים לא מוצגים, כדי שלא יהיו ספוילרים.</div>
+  </div>
+  <div class="decide"><b>החלטה · מהירויות:</b> ההצעה היא יום, שבוע או חודש לשנייה. במהירות "יום בשנייה" שנה נמשכת כ-4 דקות, ובמהירות "חודש בשנייה" עשור נמשך כ-2 דקות.</div>
+</section>
+
+<!-- ② עצירה באירוע -->
+<section class="page" id="stop">
+  <h2>עצירה באירוע</h2>
+  <p class="lead">כשהנגן נעצר, נפתח חלון קצר: מה קרה, מה זה עשה לתיק שלך, ושאלה אחת למחשבה. כאן המנטור של חבילה 5 ייכנס בהמשך.</p>
+  <div class="overlay">
+    <div class="modal">
+      <div class="top">
+        <div class="d num">יום שני, 9.3.2020 · ⏸ הנגן נעצר</div>
+        <h3>📉 S&amp;P 500 צנח 7.6% ביום אחד</h3>
+      </div>
+      <div class="body">
+        <p style="margin:0 0 8px"><b>מה קרה:</b> מלחמת מחירים בין סעודיה לרוסיה הפילה את מחיר הנפט בכ-25%, ובאותו זמן התפשטות הקורונה הלחיצה את השווקים. המסחר בניו יורק נעצר ל-15 דקות כבר בבוקר (&quot;מפסק זרם&quot;).</p>
+        <div class="mini">
+          <div><span class="sub">התיק שלך היום</span><b class="num down">−₪2,140</b><span class="sub num">−4.3%</span></div>
+          <div><span class="sub">מהשיא שלך</span><b class="num down">−11.8%</b><span class="sub">השיא: 19.2</span></div>
+          <div><span class="sub">S&amp;P 500 מהשיא</span><b class="num down">−19.0%</b><span class="sub">קרוב ל"שוק דובי"</span></div>
+        </div>
+        <div class="alert warn">🤔 <b>שאלה למחשבה:</b> הרבה משקיעים מוכרים ביום כזה מפחד. מה התוכנית שלך: למכור, לקנות בזול, או לא לעשות כלום? כתוב את זה ביומן לפני שאתה ממשיך. בסוף המסע נבדוק מה היה קורה בכל אחת מהאפשרויות.</div>
+      </div>
+      <div class="actions">
+        <button class="btn time">▶ להמשיך</button>
+        <button class="btn ghost">📝 לפקודה</button>
+        <button class="btn ghost">✍️ לכתוב ביומן</button>
+      </div>
+    </div>
+  </div>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="card"><h3>📉 / 📈 תנועת שוק</h3><p class="sub">אוטומטי מהנתונים: S&amp;P 500 (או ת"א-125 בתיק ישראלי) זז ±4% ביום. בלי טקסט היסטורי, רק המספרים.</p></div>
+    <div class="card"><h3>🗞 אירוע היסטורי</h3><p class="sub">מהרשימה המוכנה: כותרת, שני משפטים בעברית פשוטה, ולמה זה הזיז את השוק.</p></div>
+    <div class="card"><h3>💼 אירוע בתיק</h3><p class="sub">פקודה בוצעה, נדחתה או פגה. התיק ירד 10% מהשיא. דיבידנד או פיצול, אם סימנת.</p></div>
+  </div>
+</section>
+
+<!-- ③ התיק מול המדד -->
+<section class="page" id="chart">
+  <h2>התיק מול המדד</h2>
+  <p class="lead">הגרף החשוב ביותר במכונת הזמן. הוא מציג רק עד התאריך של הסימולציה, וכל קו נמתח כשהזמן מתקדם.</p>
+  <div class="grid g-main">
+    <div class="card">
+      <div class="chart">
+        <svg viewBox="0 0 600 240" preserveAspectRatio="none">
+          <rect x="300" y="0" width="60" height="240" fill="#fbeceb"/>
+          <line x1="0" y1="80" x2="600" y2="80" stroke="#e3e7ef" stroke-dasharray="4"/>
+          <polyline fill="none" stroke="#b9bfcc" stroke-width="2" stroke-dasharray="6 4" points="0,80 120,80 121,74 240,74 241,68 360,68 361,62 480,62 481,56 600,56"/>
+          <polyline fill="none" stroke="#9aa3b5" stroke-width="2" points="0,80 60,76 120,72 180,74 240,70 300,90 330,170 360,150 420,110 480,88 540,70 600,58"/>
+          <polyline fill="none" stroke="#2753d6" stroke-width="3" points="0,80 60,78 120,75 180,76 240,73 300,85 330,140 360,128 420,100 480,82 540,72 600,62"/>
+          <circle cx="300" cy="85" r="5" fill="#b26a00"/><circle cx="330" cy="140" r="5" fill="#b26a00"/><circle cx="420" cy="100" r="5" fill="#0f8a4f"/>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="dot" style="background:#2753d6"></i>התיק שלך</span>
+        <span><i class="dot" style="background:#9aa3b5"></i>אילו כל שקל שהפקדת הלך ל-S&amp;P 500</span>
+        <span><i class="dot" style="background:#b9bfcc"></i>סכום ההפקדות (המזומן ששמת)</span>
+        <span><i class="dot" style="background:#fbeceb;height:8px"></i>הירידה הגדולה מהשיא</span>
+        <span>● אירועים</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px"><button class="chip">חודש</button><button class="chip">שנה</button><button class="chip on">כל המסע</button></div>
+    </div>
+    <div class="grid" style="align-content:start">
+      <div class="card"><div class="sub">התיק שלך</div><div class="kpi"><div class="v num up">+8.4%</div></div><div class="sub">מאז ההתחלה, אחרי עמלות ומס</div></div>
+      <div class="card"><div class="sub">אותו כסף ב-S&amp;P 500</div><div class="kpi"><div class="v num up">+12.1%</div></div><div class="sub">כולל דיבידנדים ושער הדולר, אחרי עמלות קנייה. בלי מס</div></div>
+      <div class="alert warn">אתה מפגר אחרי המדד ב-3.7%. רוב המשקיעים הפעילים מפגרים אחרי המדד לאורך זמן, ובשיעור 9 נראה למה.</div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>🗞 אירועים שעברת</h3>
+    <div class="ev"><span class="d num">11.3.2020</span><span class="tag n">היסטורי</span><span>ארגון הבריאות העולמי מכריז על מגפה עולמית.</span></div>
+    <div class="ev"><span class="d num">9.3.2020</span><span class="tag">−7.6%</span><span>S&amp;P 500 צונח ביום אחד. מלחמת מחירי הנפט מצטרפת לקורונה. המסחר נעצר 15 דקות.</span></div>
+    <div class="ev"><span class="d num">24.2.2020</span><span class="tag">−3.4%</span><span>התפרצות הקורונה באיטליה. תחילת הירידות.</span></div>
+  </div>
+  <div class="decide"><b>החלטה · מדד ההשוואה:</b> ההצעה היא S&amp;P 500 לכל תיק, כי זה המדד שכולם משווים אליו. בתיק שרובו מניות ת"א נוסיף קו של ת"א-125. ההשוואה הוגנת: אותן הפקדות, באותם ימים, כולל המרה לדולר ודיבידנדים.</div>
+</section>
+
+<!-- ④ מצב עיוור -->
+<section class="page" id="blind">
+  <h2>מצב עיוור</h2>
+  <p class="lead">כל מי שזוכר את 2020 יודע שאחרי הקריסה הגיעה עלייה, אז קל "לרמות". במצב עיוור התקופה אקראית ומוסתרת, ומגלים אותה רק בסוף.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h3>מה רואים במצב עיוור</h3>
+      <div class="timebar" style="margin-bottom:10px">
+        <div class="tb-row"><button class="play">▶</button><div><div class="sub">מסע עיוור</div><div class="date">שנה 1 · יום 47</div></div></div>
+      </div>
+      <table>
+        <tr><th>מה</th><th>רגיל</th><th>עיוור</th></tr>
+        <tr><td>תאריך</td><td class="num">9.3.2020</td><td>שנה 1 · יום 47</td></tr>
+        <tr><td>גרפים</td><td>תאריכים על הציר</td><td>"לפני 3 חודשים", בלי שנה</td></tr>
+        <tr><td>אירועים היסטוריים</td><td>כותרת ותיאור</td><td>"📉 השוק צנח 7.6% היום", בלי סיבה</td></tr>
+        <tr><td>שמות מניות</td><td>גלויים</td><td>גלויים (חייבים, כדי לבחור)</td></tr>
+        <tr><td>מחירים ושער דולר</td><td>אמיתיים</td><td>אמיתיים</td></tr>
+        <tr><td>הגבלת מניות</td><td>—</td><td>אי אפשר לקנות מניה שעוד לא הייתה קיימת</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>בחירת תקופה אקראית</h3>
+      <div class="grid g3">
+        <div class="opt"><b>🎲 כל תקופה</b><small>1995–2023</small></div>
+        <div class="opt on"><b>🌪 תקופה סוערת</b><small>מתוך רשימת משברים</small></div>
+        <div class="opt"><b>😌 תקופה רגילה</b><small>בלי משבר גדול</small></div>
+      </div>
+      <label>אורך המסע</label>
+      <select><option>שנה</option><option selected>שנתיים</option><option>5 שנים</option><option>10 שנים</option></select>
+      <div class="alert info" style="margin-top:10px">💡 "תקופה סוערת" מגרילה התחלה של כמה חודשים לפני משבר מהרשימה, כך שלא תדע אם הוא בא ומתי.</div>
+      <div class="alert warn" style="margin-top:8px">⚠️ לא מושלם: מחיר של מניה מוכרת יכול לרמוז על השנה (Apple ב-$300 זה לא 2005). העיוורון מוריד את רוב הרמזים, לא את כולם.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ⑤ דו"ח סיום -->
+<section class="page" id="report">
+  <h2>דו"ח סיום המסע</h2>
+  <p class="lead">נפתח אוטומטית כשמגיעים לתאריך הסיום. אפשר גם לפתוח אותו באמצע, כ"דו"ח ביניים".</p>
+  <div class="reveal">
+    <div class="sub" style="color:#dcd3ff">🎭 חשיפה (מצב עיוור)</div>
+    <h3>היית במשבר הפיננסי של 2008!</h3>
+    <div>המסע שלך: 1.10.2007 עד 1.10.2009. התחלת שבוע לפני השיא, ועברת ירידה של 57% במדד ואת תחילת ההתאוששות.</div>
+  </div>
+  <div class="grid g4" style="margin-top:14px">
+    <div class="card"><div class="sub">התשואה שלך</div><div class="kpi"><div class="v num down">−14.2%</div></div><div class="sub">נטו, אחרי עמלות ומס</div></div>
+    <div class="card"><div class="sub">S&amp;P 500 באותה תקופה</div><div class="kpi"><div class="v num down">−21.5%</div></div><div class="sub">באותן הפקדות</div></div>
+    <div class="card"><div class="sub">ירידה מקסימלית</div><div class="kpi"><div class="v num down">−38.0%</div></div><div class="sub num">מ-10.10.2007 עד 9.3.2009</div></div>
+    <div class="card"><div class="sub">עלויות</div><div class="kpi"><div class="v num">₪1,840</div></div><div class="sub">עמלות ₪1,120 · מס ₪720</div></div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card">
+      <h3>העסקאות</h3>
+      <table>
+        <tr><th></th><th>נייר</th><th>תוצאה</th><th>מה כתבת אז</th></tr>
+        <tr><td>🏆 הכי טובה</td><td class="num">AAPL</td><td class="num up">+64%</td><td class="sub">"קונה בירידה, לטווח ארוך"</td></tr>
+        <tr><td>💥 הכי גרועה</td><td class="num">C</td><td class="num down">−91%</td><td class="sub">"בנק גדול, לא ייפול"</td></tr>
+        <tr><td>😬 מכירה בפאניקה</td><td class="num">VOO</td><td class="num down">−31%</td><td class="sub">"זה רק ייגמר רע"</td></tr>
+      </table>
+      <div class="sub" style="margin-top:6px">23 עסקאות · 61% מהזמן מושקע · זמן החזקה ממוצע 4 חודשים</div>
+    </div>
+    <div class="card">
+      <h3>מה היה קורה אילו…</h3>
+      <table>
+        <tr><td>…לא היית מוכר את VOO בפאניקה ב-9.3.2009</td><td class="num up">+₪6,200</td></tr>
+        <tr><td>…היית רק קונה את המדד ולא נוגע</td><td class="num down">−₪3,650</td></tr>
+        <tr><td>…היית בבנק במקום בברוקר אונליין</td><td class="num down">−₪1,410</td></tr>
+      </table>
+      <h3 style="margin-top:14px">שלושה דברים לקחת מהמסע</h3>
+      <div class="lesson"><i>1️⃣</i><span>המכירה הכי יקרה שלך הייתה בשפל. זה הדפוס הכי נפוץ אצל משקיעים מתחילים.</span></div>
+      <div class="lesson"><i>2️⃣</i><span>מניה אחת (C) לקחה 18% מהתיק. פיזור היה מגביל את הנזק.</span></div>
+      <div class="lesson"><i>3️⃣</i><span>כן ניצחת את המדד, בעיקר בזכות המזומן שהחזקת בתחילת המשבר.</span></div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="btn">🎲 מסע חדש</button><button class="btn ghost">🔁 אותה תקופה שוב (עם התובנות)</button><button class="btn ghost">📜 ליומן המלא</button></div>
+  <div class="decide"><b>החלטה · "שלושה דברים לקחת":</b> בחבילה 3 התובנות יחושבו בכללים קבועים (מכירה בשפל, ריכוז, פערים מהמדד). בחבילה 5 המנטור (Claude) יכתוב אותן אישית לפי מה שכתבת ביומן. ההצעה היא לבנות עכשיו את הגרסה עם הכללים.</div>
+</section>
+
+<!-- ⑥ פתיחת מסע -->
+<section class="page" id="start">
+  <h2>פתיחת מסע (תוספות לאשף התיק)</h2>
+  <p class="lead">אשף התיק הקיים, עם שלוש תוספות למכונת זמן.</p>
+  <div class="grid g3">
+    <div class="card">
+      <h3>1. תקופה</h3>
+      <div class="grid g2">
+        <div class="opt on"><b>📅 אני בוחר</b><small>תאריך או תקופה מהרשימה</small></div>
+        <div class="opt"><b>🎭 עיוור</b><small>אקראי ומוסתר</small></div>
+      </div>
+      <label>תאריך התחלה</label><input class="num" value="2020-02-03">
+    </div>
+    <div class="card">
+      <h3>2. אורך המסע</h3>
+      <select><option>שנה</option><option selected>שנתיים</option><option>5 שנים</option><option>10 שנים</option><option>עד היום</option></select>
+      <div class="sub" style="margin-top:6px">בתאריך הסיום הנגן נעצר ונפתח הדו"ח. אפשר להאריך אחר כך.</div>
+    </div>
+    <div class="card">
+      <h3>3. מדד השוואה</h3>
+      <select><option selected>S&amp;P 500 (מומלץ)</option><option>ת"א-125</option><option>שניהם</option></select>
+      <div class="sub" style="margin-top:6px">הקו האפור בגרף ובדו"ח.</div>
+    </div>
+  </div>
+</section>
+
+<div class="note">
+סקיצה 03 · מכונת הזמן. מה נבנה בחבילה 3: פס זמן עם נגן ותנאי עצירה, חלון עצירה, גרף "התיק מול המדד" עם ירידה מהשיא, ציר אירועים, רשימה של כ-50 אירועים היסטוריים בעברית (1995–2025, כל אחד נבדק מול תנועת המחירים), מצב עיוור, תאריך סיום ודו"ח סיום. ההחלטות שנסגרו: נגן, רשימת אירועים, מצב עיוור, דו"ח סיום. מה לא בחבילה הזו: היומן המלא והמנטור (חבילה 5) ועיצוב הסקירה הראשית (חבילה 4).
+</div>
+</main>
+<script>
+  document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id===b.dataset.p));
+    scrollTo(0,0);
+  });
+  document.querySelectorAll('.grid').forEach(g=>{
+    const opts=[...g.children].filter(c=>c.classList.contains('opt'));
+    opts.forEach(o=>o.onclick=()=>opts.forEach(x=>x.classList.toggle('on',x===o)));
+  });
+  document.querySelectorAll('.tb-row').forEach(r=>{
+    const sp=[...r.querySelectorAll('.chip')].slice(0,3);
+    sp.forEach(c=>c.onclick=()=>sp.forEach(x=>x.classList.toggle('on',x===c)));
+  });
+  document.querySelectorAll('.play').forEach(p=>p.onclick=()=>p.textContent=p.textContent==='▶'?'⏸':'▶');
+</script>
+</body>
+</html>

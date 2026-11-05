@@ -3,26 +3,26 @@
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { api, dateHe, money, pct, signed, tone } from "@/lib/format";
-import type { PortfolioView } from "@/lib/engine/service";
+import type { PortfolioView, Stop } from "@/lib/engine/service";
 import OrderForm, { type OrderPrefill } from "./order-form";
 import FxForm from "./fx-form";
 import HistoryPanel from "./history-panel";
 import TaxPanel from "./tax-panel";
+import TimeBar, { type AdvanceResult } from "./time-bar";
+import StopModal from "./stop-modal";
+import JourneyChart from "./journey-chart";
+import ReportPanel from "./report-panel";
 
 const TABS = [
   { k: "overview", label: "סקירה" },
+  { k: "chart", label: "📈 מול המדד" },
   { k: "order", label: "פקודה" },
   { k: "cash", label: "מזומן ומט\"ח" },
   { k: "history", label: "פקודות והיסטוריה" },
   { k: "tax", label: "מס ועלויות" },
+  { k: "report", label: "📊 דו\"ח המסע", timeOnly: true },
 ] as const;
 type Tab = (typeof TABS)[number]["k"];
-
-function addDays(d: string, n: number) {
-  const t = new Date(d + "T12:00:00Z");
-  t.setUTCDate(t.getUTCDate() + n);
-  return t.toISOString().slice(0, 10);
-}
 
 export default function PortfolioScreen() {
   const { id } = useParams<{ id: string }>();
@@ -33,8 +33,10 @@ export default function PortfolioScreen() {
   const [prefill, setPrefill] = useState<OrderPrefill | null>(null);
   const [fxPrefill, setFxPrefill] = useState<number | null>(null);
   const [orderKey, setOrderKey] = useState(0);
-  const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState("");
+  const [stop, setStop] = useState<Stop | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [resume, setResume] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -56,19 +58,20 @@ export default function PortfolioScreen() {
     };
   }, [id]);
 
-  async function advance(days: number) {
-    if (!v) return;
-    setBusy(true);
-    try {
-      const r = await api<{ from: string; to: string; entries: number }>(`/api/portfolios/${id}/advance`, { method: "POST", json: { to: addDays(v.portfolio.simDate, days) } });
-      setFlash(`⏩ הזמן התקדם ל-${dateHe(r.to)}${r.entries ? ` · ${r.entries} תנועות חדשות ביומן` : ""}`);
+  const onAdvanced = useCallback(
+    async (r: AdvanceResult | null, error?: string) => {
+      if (!r) {
+        setFlash(`⚠️ ${error}`);
+        return;
+      }
       await load();
-    } catch (e) {
-      setFlash(`⚠️ ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  }
+      if (r.stop) {
+        setStop(r.stop);
+        setFlash("");
+      } else if (r.entries) setFlash(`⏩ ${dateHe(r.to)} · ${r.entries} תנועות חדשות ביומן`);
+    },
+    [load],
+  );
 
   async function remove() {
     if (!v || !confirm(`למחוק את התיק "${v.portfolio.name}" עם כל ההיסטוריה שלו? אי אפשר לבטל.`)) return;
@@ -83,32 +86,42 @@ export default function PortfolioScreen() {
   const t = v.totals;
   const isTime = p.mode === "time";
 
+  const version = `${p.simDate}-${v.history.length}-${v.pending.length}`;
+
   return (
     <>
-      <div className={`px-4 md:px-6 py-2.5 flex items-center gap-3 flex-wrap border-b ${isTime ? "bg-time-soft border-[#ddd2f7]" : "bg-card border-line"}`}>
-        <b className="text-base">{p.name}</b>
-        <span className={`text-xs px-2 py-0.5 rounded-full ${isTime ? "bg-time text-white" : "bg-down-soft text-down"}`}>{isTime ? "⏳ מכונת זמן" : "🔴 חי"}</span>
-        <span className="text-sm">
-          {isTime ? "התאריך בסימולציה:" : "היום:"} <b className={`num ${isTime ? "text-time" : ""}`}>{dateHe(p.simDate)}</b>
-        </span>
-        {isTime && (
-          <div className="flex gap-1.5 items-center">
-            <span className="text-xs text-muted">קדימה:</span>
-            {[
-              [1, "+יום"],
-              [7, "+שבוע"],
-              [30, "+חודש"],
-              [365, "+שנה"],
-            ].map(([n, l]) => (
-              <button key={n} disabled={busy} className="chip" onClick={() => advance(n as number)}>
-                {l}
-              </button>
-            ))}
-          </div>
-        )}
-        <span className="flex-1" />
-        <span className="text-xs text-muted num">דולר: ₪{v.fx.toFixed(4)}</span>
-      </div>
+      {isTime ? (
+        <TimeBar id={id} view={v} onAdvanced={onAdvanced} onPlayingChange={setPlaying} resume={resume} />
+      ) : (
+        <div className="px-4 md:px-6 py-2.5 flex items-center gap-3 flex-wrap border-b bg-card border-line">
+          <b className="text-base">{p.name}</b>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-down-soft text-down">🔴 חי</span>
+          <span className="text-sm">
+            היום: <b className="num">{dateHe(p.simDate)}</b>
+          </span>
+          <span className="flex-1" />
+          <span className="text-xs text-muted num">דולר: ₪{v.fx.toFixed(4)}</span>
+        </div>
+      )}
+      {stop && (
+        <StopModal
+          stop={stop}
+          blind={p.blind}
+          onClose={() => setStop(null)}
+          onContinue={() => {
+            setStop(null);
+            setResume((n) => n + 1);
+          }}
+          onOrder={() => {
+            setStop(null);
+            setTab("order");
+          }}
+          onReport={() => {
+            setStop(null);
+            setTab("report");
+          }}
+        />
+      )}
       {flash && (
         <div className="px-4 md:px-6 py-2 text-sm bg-brand-soft text-brand flex">
           <span className="flex-1">{flash}</span>
@@ -125,7 +138,7 @@ export default function PortfolioScreen() {
         </div>
 
         <div className="flex gap-1 border-b border-line overflow-x-auto">
-          {TABS.map((x) => (
+          {TABS.filter((x) => !("timeOnly" in x) || isTime).map((x) => (
             <button key={x.k} onClick={() => setTab(x.k)} className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px ${tab === x.k ? "border-brand text-brand font-semibold" : "border-transparent text-muted"}`}>
               {x.label}
               {x.k === "history" && v.pending.length > 0 && <span className="ms-1 text-xs bg-warn-soft text-warn rounded-full px-1.5">{v.pending.length}</span>}
@@ -196,6 +209,7 @@ export default function PortfolioScreen() {
             prefill={prefill}
             onDone={async (msg) => { setFlash(msg); setPrefill(null); setOrderKey((k) => k + 1); await load(); setTab("history"); }}
             onNeedCash={(ils) => { setFxPrefill(ils); setTab("cash"); }}
+            playing={playing}
           />
         </div>
         {tab === "cash" && (
@@ -215,6 +229,8 @@ export default function PortfolioScreen() {
         )}
         {tab === "history" && <HistoryPanel id={id} view={v} onChange={load} />}
         {tab === "tax" && <TaxPanel view={v} />}
+        {tab === "chart" && <JourneyChart id={id} version={version} />}
+        {tab === "report" && <ReportPanel id={id} version={version} />}
       </main>
     </>
   );
