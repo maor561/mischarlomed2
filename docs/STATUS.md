@@ -40,6 +40,5 @@ npm run dev        # http://localhost:3000
 הסיסמה נמצאת ב-`web/.env.local` (‏APP_PASSWORD).
 
 ## פתוח
-- מאגר GitHub: אין `gh` במחשב, ולכן צריך ליצור את המאגר ידנית ב-github.com. אחר כך דוחפים ומחברים ל-Vercel
-- פריסה ידנית בינתיים: `vercel deploy --prod` מתוך `web/`
+- מאגר: https://github.com/maor561/mischarlomed2 (ענף `main`), מחובר ל-Vercel עם Root Directory = `web`. דחיפה ל-`main` מפעילה פריסה
 - מפתח Claude API למנטור (חבילה 5). הנימוק ("למה") ותוכנית היציאה כבר נשמרים בכל פקודה, מוכנים ליומן
