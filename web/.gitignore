@@ -43,3 +43,6 @@ next-env.d.ts
 # מסד נתונים מקומי
 /.data
 !.env.example
+
+.vercel
+.env*
