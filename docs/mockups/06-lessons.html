@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מסלול שיעורים — סקיצה 06</title>
+<style>
+  :root{
+    --bg:#f4f6fa; --card:#fff; --ink:#1b2333; --muted:#6b7488; --line:#e3e7ef;
+    --brand:#2753d6; --brand-soft:#e9eefc; --up:#0f8a4f; --up-soft:#e5f5ec;
+    --down:#c8372d; --down-soft:#fbeceb; --warn:#b26a00; --warn-soft:#fff4e0;
+    --time:#6b3fd1; --time-soft:#f0eafc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.6}
+  .sketch-banner{background:#222;color:#fff;text-align:center;padding:6px;font-size:12px}
+  header.top{background:var(--card);border-bottom:1px solid var(--line);padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .logo{font-weight:700;font-size:18px}.logo span{color:var(--brand)}
+  nav.tabs{display:flex;gap:4px;flex-wrap:wrap}
+  nav.tabs button{border:0;background:none;padding:8px 12px;border-radius:8px;cursor:pointer;font:inherit;color:var(--muted)}
+  nav.tabs button.on{background:var(--brand-soft);color:var(--brand);font-weight:600}
+  main{padding:18px 20px;max-width:1100px;margin:auto}
+  .page{display:none}.page.on{display:block}
+  h2{font-size:18px;margin:0 0 4px}
+  .lead{color:var(--muted);margin:0 0 14px}
+  .grid{display:grid;gap:14px}
+  .g-main{grid-template-columns:2fr 1fr}
+  @media(max-width:900px){.g-main{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card h3{margin:0 0 10px;font-size:15px}
+  .num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+  .sub{font-size:12px;color:var(--muted)}
+  .btn{display:inline-block;padding:9px 14px;border:0;border-radius:8px;background:var(--brand);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+  .btn.ghost{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+  .btn.time{background:var(--time)}
+  .t{border-bottom:1.5px dashed var(--brand)}
+  .progress{height:10px;background:var(--bg);border-radius:5px;overflow:hidden}
+  .progress i{display:block;height:100%;background:var(--up)}
+  .module{margin-top:14px}
+  .module h4{margin:0 0 8px;font-size:14px;display:flex;gap:8px;align-items:center}
+  .lesson{display:flex;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:6px;cursor:pointer}
+  .lesson .n{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--bg);flex:none;font-size:13px}
+  .lesson.done .n{background:var(--up);color:#fff}
+  .lesson.half .n{background:var(--warn-soft);color:var(--warn)}
+  .lesson.now{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .lesson.now .n{background:var(--brand);color:#fff}
+  .lesson .meta{flex:1}
+  .ticks{font-size:12px;color:var(--muted);white-space:nowrap}
+  .mission{font-size:12px;background:var(--time-soft);color:var(--time);padding:2px 8px;border-radius:10px}
+  .body p{margin:0 0 10px}
+  .example{background:var(--bg);border-radius:8px;padding:10px 12px;margin:10px 0}
+  .key{background:var(--up-soft);color:#0b5a34;border-radius:10px;padding:10px 12px}
+  .q{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+  .opt{display:block;width:100%;text-align:start;border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin-top:6px;background:#fff;font:inherit;cursor:pointer}
+  .opt.right{border-color:var(--up);background:var(--up-soft)}
+  .opt.wrong{border-color:var(--down);background:var(--down-soft)}
+  .explain{font-size:13px;margin-top:8px;padding:8px 10px;border-radius:8px;background:var(--brand-soft);color:#1d3c9e}
+  .mbox{background:var(--time-soft);border:1px solid #ddd2f7;border-radius:12px;padding:14px 16px}
+  .mbox h3{color:var(--time)}
+  .decide{border:2px dashed var(--warn);background:var(--warn-soft);border-radius:10px;padding:10px 14px;margin-top:12px;font-size:13px}
+  .decide b{color:var(--warn)}
+  .note{font-size:12px;color:var(--muted);margin-top:22px;border-top:1px dashed var(--line);padding-top:10px}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top;font-size:13px}
+  th{font-size:12px;color:var(--muted);font-weight:600}
+  tr.mod td{background:var(--bg);font-weight:700}
+</style>
+</head>
+<body>
+<div class="sketch-banner">סקיצה 06 · מסלול שיעורים. 28 שיעורים ב-7 מודולים. משבצות צהובות מקווקוות = החלטה שמחכה לך.</div>
+<header class="top">
+  <div class="logo">📈 מסחר<span>־לומד</span></div>
+  <nav class="tabs">
+    <button class="on" data-p="path">① המסלול</button>
+    <button data-p="lesson">② שיעור</button>
+    <button data-p="quiz">③ שאלות</button>
+    <button data-p="mission">④ משימה</button>
+    <button data-p="outline">⑤ כל 28 השיעורים</button>
+  </nav>
+</header>
+
+<main>
+<!-- ① המסלול -->
+<section class="page on" id="path">
+  <h2>מסלול הלימוד (דף חדש: "שיעורים" בתפריט העליון)</h2>
+  <p class="lead">יש סדר מומלץ, אבל כל שיעור פתוח. שיעור נחשב "הושלם" אחרי השאלות והמשימה. ההתקדמות נשמרת במסד הנתונים, כך שהיא זהה במחשב ובטלפון.</p>
+  <div class="grid g-main">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><b>ההתקדמות שלך</b><span class="num">7 / 28</span></div>
+      <div class="progress" style="margin:6px 0 4px"><i style="width:25%"></i></div>
+      <div class="sub">✅ שאלות + משימה · 🟡 רק שאלות · ⚪ עוד לא</div>
+
+      <div class="module"><h4>מודול 1 · יסודות <span class="sub">4/4</span></h4>
+        <div class="lesson done"><div class="n">✓</div><div class="meta"><b>מה זו מניה, ולמה המחיר שלה זז</b><div class="sub">6 דק'</div></div><span class="ticks">✅ שאלות · ✅ משימה</span></div>
+        <div class="lesson done"><div class="n">✓</div><div class="meta"><b>קרן סל ומדד: לקנות את כל השוק בפקודה אחת</b><div class="sub">7 דק'</div></div><span class="ticks">✅ · ✅</span></div>
+        <div class="lesson done"><div class="n">✓</div><div class="meta"><b>עמלות, מס ודמי משמרת: מי לוקח לך מהרווח</b></div><span class="ticks">✅ · ✅</span></div>
+        <div class="lesson done"><div class="n">✓</div><div class="meta"><b>דולר ושקל: למה גם השער משפיע עליך</b></div><span class="ticks">✅ · ✅</span></div>
+      </div>
+      <div class="module"><h4>מודול 2 · סיכון <span class="sub">3/4</span></h4>
+        <div class="lesson done"><div class="n">✓</div><div class="meta"><b>תנודתיות: למה ירידה של 50% צריכה עלייה של 100%</b></div><span class="ticks">✅ · ✅</span></div>
+        <div class="lesson done"><div class="n">✓</div><div class="meta"><b>פיזור: לא לשים את כל הביצים בסל אחד</b></div><span class="ticks">✅ · ✅</span></div>
+        <div class="lesson half"><div class="n">7</div><div class="meta"><b>ירידה מהשיא ושוק דובי</b></div><span class="ticks">✅ · ⚪</span></div>
+        <div class="lesson now"><div class="n">8</div><div class="meta"><b>למה לא מוכרים בפאניקה</b><div class="sub">8 דק' · הבא בתור</div></div><span class="mission">משימה: מרץ 2020</span></div>
+      </div>
+      <div class="module"><h4>מודול 3 · פקודות וזמן <span class="sub">0/4</span></h4><div class="sub">… (ראו "כל 28 השיעורים")</div></div>
+    </div>
+    <div class="grid" style="align-content:start">
+      <div class="card">
+        <h3>📚 בסקירה של התיק (במקום "כאן ייכנס…")</h3>
+        <b>השיעור הבא: למה לא מוכרים בפאניקה</b>
+        <div class="sub">8 דק' · משימה: מרץ 2020</div>
+        <button class="btn" style="margin-top:8px">התחל שיעור</button>
+      </div>
+      <div class="card">
+        <h3>🔗 קישורים בין חלקי האתר</h3>
+        <ul style="margin:0;padding-inline-start:18px" class="sub">
+          <li>כל שיעור מסמן את המונחים שלו מהמילון (קו מקווקו)</li>
+          <li>המנטור ממליץ על שיעור לפי הטעות, למשל FOMO → שיעור 21</li>
+          <li>דו"ח המסע מציע שיעור לפי התובנות</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ② שיעור -->
+<section class="page" id="lesson">
+  <h2>דוגמה מלאה: שיעור 8 · למה לא מוכרים בפאניקה</h2>
+  <p class="lead">מבנה קבוע לכל שיעור: הסבר קצר, דוגמה עם מספרים אמיתיים, "הדבר האחד לזכור", 3 שאלות ומשימה.</p>
+  <div class="grid g-main">
+    <div class="card body">
+      <div class="sub">מודול 2 · סיכון · 8 דק'</div>
+      <h3 style="font-size:18px;margin:4px 0 12px">למה לא מוכרים בפאניקה</h3>
+      <p>כשהשוק צונח, המוח שלנו מתנהג כאילו יש סכנה מיידית. הרצון "לעצור את הדימום" חזק מאוד, ולכן הרבה משקיעים מוכרים דווקא בנקודה הכי נמוכה.</p>
+      <p>הבעיה: הימים הטובים ביותר בשוק מגיעים בדרך כלל צמוד לימים הגרועים ביותר. מי שמכר בשפל, בדרך כלל לא חוזר בזמן לעלייה.</p>
+      <div class="example"><b>דוגמה מהנתונים:</b> ב-16.3.2020 S&amp;P 500 צנח ב-12% ביום אחד. שבוע אחר כך, ב-24.3, הוא זינק ב-9.4%. מי שמכר ב-16.3 והחליט "לחכות שיירגע" פספס את אחד הימים הטובים בהיסטוריה. עד סוף 2020 המדד כבר היה גבוה מהשיא של לפני הקורונה.</div>
+      <p>זה לא אומר שאסור למכור אף פעם. השאלה הנכונה היא לא "כמה ירד?", אלא <b>"האם הסיבה שבגללה קניתי עדיין נכונה?"</b> אם קנית קרן על כל השוק לעשר שנים, ירידה של חודש לא משנה את הסיבה.</p>
+      <div class="key">💡 <b>הדבר האחד לזכור:</b> לפני שמוכרים בירידה, בודקים את הסיבה ולא את המחיר.</div>
+      <div class="sub" style="margin-top:10px">מונחים בשיעור: <span class="t">ירידה מהשיא</span> · <span class="t">שוק דובי</span> · <span class="t">תנודתיות</span> · <span class="t">מדד</span></div>
+    </div>
+    <div class="grid" style="align-content:start">
+      <div class="card"><h3>📝 3 שאלות</h3><div class="sub">אחרי ההסבר. ראו לשונית ③.</div></div>
+      <div class="mbox"><h3>🎯 משימה</h3>עבור את מרץ 2020 בלי למכור כלום, ובכל עצירה של הנגן כתוב ביומן מה אתה מרגיש. בסוף בדוק ביוני מה קרה.<div style="margin-top:10px"><button class="btn time">פתח תיק למשימה ←</button></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ③ שאלות -->
+<section class="page" id="quiz">
+  <h2>שאלות</h2>
+  <p class="lead">3 שאלות אמריקאיות. אחרי כל תשובה יש הסבר, גם לתשובה הנכונה. אפשר לנסות שוב, והשאלות נחשבות "עברו" כשכל התשובות נכונות.</p>
+  <div class="card" style="max-width:700px">
+    <div class="q">
+      <b>1. השוק ירד 25% בחודש, ויש לך קרן על כל השוק שקנית לטווח ארוך. מה השאלה הכי חשובה לשאול?</b>
+      <button class="opt">כמה עוד הוא יכול לרדת?</button>
+      <button class="opt right">האם הסיבה שבגללה קניתי עדיין נכונה? ✓</button>
+      <button class="opt">מה כולם עושים עכשיו?</button>
+      <div class="explain">נכון. המחיר כבר ירד, ואי אפשר לדעת כמה עוד. מה שאתה כן יכול לבדוק זה את הסיבה. "כל השוק לעשר שנים" לא השתנה בגלל חודש רע.</div>
+    </div>
+    <div class="q">
+      <b>2. ב-16.3.2020 השוק צנח 12%. מה קרה שבוע אחר כך?</b>
+      <button class="opt wrong">המשיך לרדת עוד 20% ✗</button>
+      <button class="opt">נשאר בערך במקום</button>
+      <button class="opt">זינק 9.4% ביום אחד</button>
+      <div class="explain" style="background:var(--down-soft);color:#7a1f18">לא. ב-24.3.2020 S&amp;P 500 זינק 9.4%. הימים הטובים מגיעים צמוד לימים הגרועים. נסה שוב.</div>
+    </div>
+    <div class="q"><b>3. …</b></div>
+    <div class="sub">2 מתוך 3 נכונות. ענה על כולן נכון כדי לסמן ✅.</div>
+  </div>
+</section>
+
+<!-- ④ משימה -->
+<section class="page" id="mission">
+  <h2>משימה (סימון עצמי)</h2>
+  <p class="lead">כל שיעור נגמר במשימה בסימולטור. "פתח תיק למשימה" פותח את אשף התיק עם הכול כבר ממולא (תאריך, אורך, סכום ושם), ואתה רק מאשר. כשסיימת, חוזרים לשיעור ומסמנים.</p>
+  <div class="grid g-main">
+    <div class="mbox">
+      <h3>🎯 משימה: עבור את מרץ 2020 בלי למכור</h3>
+      <ol style="margin:0;padding-inline-start:18px">
+        <li>פתח תיק מכונת זמן מ-3.2.2020 לשנה (ממולא אוטומטית)</li>
+        <li>קנה VOO בכ-80% מהכסף, וכתוב למה</li>
+        <li>הפעל את הנגן. בכל עצירה כתוב ביומן מה אתה מרגיש, <b>ואל תמכור</b></li>
+        <li>הגע ליוני 2020 והסתכל ב"מול המדד"</li>
+      </ol>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn time">פתח תיק למשימה ←</button><button class="btn ghost">✅ סיימתי את המשימה</button></div>
+      <label class="sub" style="display:block;margin-top:10px">מה למדת? (אופציונלי, נשמר עם השיעור)</label>
+      <textarea style="width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit" rows="2">היה קשה לא למכור ב-16.3, אבל ביוני התיק כמעט חזר</textarea>
+    </div>
+    <div class="card">
+      <h3>אשף התיק, ממולא מראש</h3>
+      <table>
+        <tr><td>שם</td><td>שיעור 8 · מרץ 2020</td></tr>
+        <tr><td>מצב</td><td>מכונת זמן</td></tr>
+        <tr><td>התחלה</td><td class="num">3.2.2020</td></tr>
+        <tr><td>אורך</td><td>שנה</td></tr>
+        <tr><td>הון</td><td class="num">₪50,000</td></tr>
+      </table>
+      <div class="sub" style="margin-top:6px">אפשר לשנות כל ערך לפני הפתיחה.</div>
+    </div>
+  </div>
+  <div class="decide"><b>החלטה · מה נחשב "הושלם":</b> ההצעה היא שיעור עם ✅ = כל השאלות נכונות + המשימה סומנה. אפשר לסמן משימה גם בלי לעשות אותה, כי זה סימון עצמי. המטרה היא תזכורת, לא ציון.</div>
+</section>
+
+<!-- ⑤ כל השיעורים -->
+<section class="page" id="outline">
+  <h2>כל 28 השיעורים (לאישור התוכן)</h2>
+  <p class="lead">זו הרשימה לאישור. התוכן המלא של כל שיעור ייכתב בבנייה, באותו מבנה של שיעור 8. מספרים ותאריכים ייבדקו מול הנתונים, כמו האירועים ההיסטוריים.</p>
+  <div class="card" style="overflow-x:auto">
+    <table>
+      <tr><th>#</th><th>שיעור</th><th>המשימה בסימולטור</th></tr>
+      <tr class="mod"><td colspan="3">מודול 1 · יסודות</td></tr>
+      <tr><td>1</td><td>מה זו מניה, ולמה המחיר שלה זז</td><td>פתח דף נייר של 3 חברות מוכרות והשווה את הגרפים ל-5 שנים</td></tr>
+      <tr><td>2</td><td>קרן סל ומדד: לקנות את כל השוק בפקודה אחת</td><td>מכונת זמן מ-2014 ל-5 שנים: קנה VOO והשווה למדד</td></tr>
+      <tr><td>3</td><td>עמלות, מס ודמי משמרת: מי לוקח לך מהרווח</td><td>שני תיקים זהים, "בנק" מול "אונליין", עם אותן עסקאות. השווה ב"מס ועלויות"</td></tr>
+      <tr><td>4</td><td>דולר ושקל: למה גם השער משפיע עליך</td><td>קנה מניה אמריקאית ובדוק את הרווח בשקלים מול בדולרים (דף נייר)</td></tr>
+      <tr class="mod"><td colspan="3">מודול 2 · סיכון</td></tr>
+      <tr><td>5</td><td>תנודתיות: למה ירידה של 50% צריכה עלייה של 100%</td><td>השווה גרף של מניה בודדת לקרן סל ב-2020</td></tr>
+      <tr><td>6</td><td>פיזור: לא לשים את כל הביצים בסל אחד</td><td>שני תיקים ב-2022: מניה אחת מול קרן רחבה</td></tr>
+      <tr><td>7</td><td>ירידה מהשיא ושוק דובי</td><td>מסע מאוקטובר 2007 לשנתיים: רשום את הירידה הגדולה מהשיא</td></tr>
+      <tr><td>8</td><td>למה לא מוכרים בפאניקה</td><td>מרץ 2020 בלי למכור, עם יומן בכל עצירה</td></tr>
+      <tr class="mod"><td colspan="3">מודול 3 · פקודות וזמן</td></tr>
+      <tr><td>9</td><td>פקודת שוק ופער פתיחה</td><td>שלח פקודת שוק ביום שישי וראה באיזה מחיר היא בוצעה ביום שני</td></tr>
+      <tr><td>10</td><td>לימיט וסטופ-לוס: לתת למערכת לעבוד</td><td>במרץ 2020: לימיט 15% מתחת למחיר וסטופ 10% מתחת. מה בוצע ובאיזה מחיר?</td></tr>
+      <tr><td>11</td><td>ריבית דריבית והפקדה חודשית</td><td>מסע של 10 שנים מ-2014 עם הוראת קבע, בלי למכור אף פעם</td></tr>
+      <tr><td>12</td><td>תזמון שוק: למה כמעט אי אפשר</td><td>מסע עיוור "סוער": נסה לצאת לפני המשבר, והשווה למדד</td></tr>
+      <tr class="mod"><td colspan="3">מודול 4 · לבחור מניה</td></tr>
+      <tr><td>13</td><td>מה מספרים הדוחות: הכנסות, רווח ומזומן</td><td>בתיק חי, פתח דף נייר של 3 חברות מאותו סקטור והשווה</td></tr>
+      <tr><td>14</td><td>מכפיל רווח: מתי מניה "יקרה"</td><td>מצא מניה עם מכפיל מעל 40 ומניה מתחת ל-15, וכתוב ביומן למה לדעתך</td></tr>
+      <tr><td>15</td><td>דיבידנדים, ערך מול צמיחה</td><td>מ-2018 ל-5 שנים: קרן דיבידנד (SCHD) מול קרן צמיחה (QQQ)</td></tr>
+      <tr><td>16</td><td>למה רוב המנהלים המקצועיים לא מנצחים את המדד</td><td>מסע עיוור: בחר 5 מניות ובסוף השווה למדד</td></tr>
+      <tr class="mod"><td colspan="3">מודול 5 · לבנות תיק</td></tr>
+      <tr><td>17</td><td>מניות, אג"ח ומזומן: הקצאת נכסים</td><td>2008: תיק 60/40 (VOO/BND) מול 100% מניות</td></tr>
+      <tr><td>18</td><td>תיק "עצלן" ואיזון מחדש</td><td>מסע של 5 שנים עם איזון פעם בשנה (תזכורת ביומן)</td></tr>
+      <tr><td>19</td><td>ישראל מול העולם</td><td>שני תיקים: מדד ייחוס ת"א-125 מול S&amp;P 500, אותה תקופה</td></tr>
+      <tr><td>20</td><td>כמה סיכון מתאים לי</td><td>כתוב ביומן: אופק, מטרה, וכמה ירידה תוכל לשאת בלי למכור</td></tr>
+      <tr class="mod"><td colspan="3">מודול 6 · הפסיכולוגיה של המשקיע</td></tr>
+      <tr><td>21</td><td>FOMO ועדר</td><td>עבור על הדפוסים ביומן: מה קרה לעסקאות "כי עלה"?</td></tr>
+      <tr><td>22</td><td>ביטחון יתר והטיית אישור</td><td>לפני קנייה, כתוב ביומן סיבה אחת נגד, ובדוק אותה אחרי 30 יום</td></tr>
+      <tr><td>23</td><td>שנאת הפסד: "לא מוכר עד שזה יחזור"</td><td>מצא ביומן עסקה מפסידה שהחזקת. האם היית קונה אותה היום?</td></tr>
+      <tr><td>24</td><td>תוכנית השקעה כתובה</td><td>כתוב ביומן תוכנית של חצי עמוד, ועבוד לפיה במסע עיוור</td></tr>
+      <tr class="mod"><td colspan="3">מודול 7 · מהסימולטור לעולם האמיתי</td></tr>
+      <tr><td>25</td><td>איפה מחזיקים כסף להשקעה: בנק, ברוקר, קופת גמל להשקעה, קרן השתלמות</td><td>רשום ביומן איזה מסלולים יש לך כבר (פנסיה, השתלמות) ומה דמי הניהול</td></tr>
+      <tr><td>26</td><td>לבחור בית השקעות ולהשוות עמלות</td><td>הקלד הצעה אמיתית בפרופיל "מותאם" והשווה לבנק</td></tr>
+      <tr><td>27</td><td>מס בפועל: ניכוי במקור, טופס 867, ומתי מדווחים</td><td>קרא את "מס ועלויות" באחד המסעות והסבר לעצמך כל שורה</td></tr>
+      <tr><td>28</td><td>התוכנית שלך לצאת לדרך</td><td>רשימת בדיקה: קרן חירום, מטרה, אופק, סכום חודשי. ולהתייעץ עם יועץ מורשה</td></tr>
+    </table>
+  </div>
+  <div class="decide"><b>החלטה · מודול 7:</b> המודול כללי ומסביר מושגים ואפשרויות, בלי המלצה על גוף מסוים. מספרים שמשתנים מדי שנה (תקרות הפקדה, הטבות מס) לא יופיעו כמספר. במקום זה תופיע הפניה לבדוק את הערך העדכני. כל שיעור במודול מסתיים בהמלצה להתייעץ עם בעל רישיון.</div>
+</section>
+
+<div class="note">סקיצה 06 · מסלול שיעורים. ההחלטות שנסגרו: 24 שיעורים במודולים 1–6, ועוד מודול 7 "מהסימולטור לעולם האמיתי" (סך הכול 28). משימות בסימון עצמי, עם "פתח תיק למשימה" שממלא את האשף. סדר מומלץ, לא נעול. ההתקדמות נשמרת במסד הנתונים.</div>
+</main>
+<script>
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id===b.dataset.p));
+    scrollTo(0,0);
+  });
+</script>
+</body>
+</html>

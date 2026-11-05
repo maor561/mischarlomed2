@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import SymbolSearch from "@/components/symbol-search";
@@ -36,19 +37,31 @@ const BLIND_KINDS = [
   { k: "any", title: "🎲 כל תקופה", sub: "1995 עד היום" },
 ] as const;
 
-export default function NewPortfolio() {
+/** Next.js שומר מצב של מסכים שביקרו בהם. מפתח לפי הפרמטרים, כדי שכל משימה תפתח אשף טרי */
+export default function NewPortfolioRoute() {
+  const sp = useSearchParams();
+  return <NewPortfolio key={sp.toString()} />;
+}
+
+function NewPortfolio() {
   const router = useRouter();
   const sp = useSearchParams();
-  const [name, setName] = useState(sp.get("blind") ? "מסע עיוור" : "מכונת זמן — קורונה");
-  const [capital, setCapital] = useState(50000);
-  const [mode, setMode] = useState<"time" | "live">("time");
-  const [start, setStart] = useState("2020-02-03");
-  const [blind, setBlind] = useState<null | "stormy" | "calm" | "any">(sp.get("blind") ? "stormy" : null);
-  const [length, setLength] = useState<(typeof LENGTHS)[number]["k"]>("2y");
-  const [benchmark, setBenchmark] = useState<"SPY" | "TA125">("SPY");
+  // פרמטרים מהכתובת: "פתח תיק למשימה" בשיעור ממלא את האשף מראש (D26)
+  const blindParam = sp.get("blind");
+  const blindInit = blindParam === "stormy" || blindParam === "calm" || blindParam === "any" ? blindParam : blindParam ? "stormy" : null;
+  const lenParam = sp.get("length");
+  const lesson = Number(sp.get("lesson")) || null;
+  const depParam = Number(sp.get("dep")) || 0;
+  const [name, setName] = useState(sp.get("name") ?? (blindInit ? "מסע עיוור" : "מכונת זמן — קורונה"));
+  const [capital, setCapital] = useState(Number(sp.get("capital")) || 50000);
+  const [mode, setMode] = useState<"time" | "live">(sp.get("mode") === "live" ? "live" : "time");
+  const [start, setStart] = useState(sp.get("start") ?? "2020-02-03");
+  const [blind, setBlind] = useState<null | "stormy" | "calm" | "any">(blindInit);
+  const [length, setLength] = useState<(typeof LENGTHS)[number]["k"]>(LENGTHS.some((l) => l.k === lenParam) ? (lenParam as (typeof LENGTHS)[number]["k"]) : "2y");
+  const [benchmark, setBenchmark] = useState<"SPY" | "TA125">(sp.get("bench") === "TA125" ? "TA125" : "SPY");
   const [fees, setFees] = useState<FeeProfile>({ ...FEE_PRESETS.online });
-  const [depOn, setDepOn] = useState(false);
-  const [dep, setDep] = useState({ amount: 1000, day: 1, autoBuy: "VOO" as string | null });
+  const [depOn, setDepOn] = useState(depParam > 0);
+  const [dep, setDep] = useState({ amount: depParam || 1000, day: 1, autoBuy: (sp.get("auto") ?? (depParam ? null : "VOO")) as string | null });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
@@ -78,6 +91,11 @@ export default function NewPortfolio() {
     <main className="max-w-5xl mx-auto p-4 md:p-6 space-y-4">
       <div>
         <h1 className="text-xl font-bold">פתיחת תיק חדש</h1>
+        {lesson && (
+          <div className="text-sm rounded-lg p-2.5 my-2 bg-time-soft text-time">
+            🎯 תיק למשימה של <Link href={`/lessons/${lesson}`} className="underline font-semibold">שיעור {lesson}</Link>. הכול כבר ממולא, ואפשר לשנות כל ערך לפני הפתיחה.
+          </div>
+        )}
         <p className="text-muted">
           אפשר להחזיק כמה תיקים במקביל. למשל, שני תיקים זהים עם עמלות שונות, כדי לראות כמה זה משנה.
         </p>

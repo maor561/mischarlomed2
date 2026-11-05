@@ -147,6 +147,15 @@ CREATE TABLE IF NOT EXISTS journal_notes (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ===== חבילה 6: התקדמות בשיעורים (משתמש יחיד) =====
+CREATE TABLE IF NOT EXISTS lesson_progress (
+  n            INTEGER PRIMARY KEY,
+  quiz_done    BOOLEAN NOT NULL DEFAULT false,
+  mission_done BOOLEAN NOT NULL DEFAULT false,
+  note         TEXT,
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ===== חבילה 4: מידע על נייר (סקטור ונתוני חברה), מטמון ל-12 שעות =====
 CREATE TABLE IF NOT EXISTS instrument_info (
   symbol     TEXT PRIMARY KEY,

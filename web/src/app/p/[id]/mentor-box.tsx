@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { TAG_INFO, type MentorNote, type ReasonTag } from "@/lib/mentor/rules";
+import { LESSON_BY_N, LESSON_FOR_NOTE } from "@/lib/lessons/content";
 
 export const LEVEL_CLS: Record<string, string> = {
   bad: "bg-down-soft text-[#7a1f18]",
@@ -9,13 +11,20 @@ export const LEVEL_CLS: Record<string, string> = {
   good: "bg-up-soft text-[#0b5a34]",
 };
 
-export function NoteCard({ n }: { n: Pick<MentorNote, "icon" | "title" | "body"> & { level: string } }) {
+export function NoteCard({ n }: { n: Pick<MentorNote, "icon" | "title" | "body"> & { level: string; id?: string } }) {
+  // הערת מנטור מפנה לשיעור שמסביר את הנושא (D27)
+  const lesson = n.id ? LESSON_FOR_NOTE[n.id] : undefined;
   return (
     <div className={`rounded-xl px-3 py-2.5 text-[13px] flex gap-2.5 items-start ${LEVEL_CLS[n.level] ?? LEVEL_CLS.info}`}>
       <span className="text-lg leading-none">{n.icon}</span>
       <div>
         <b className="block mb-0.5">{n.title}</b>
         {n.body}
+        {lesson && (
+          <Link href={`/lessons/${lesson}`} className="block mt-1 text-xs underline opacity-80">
+            📚 שיעור {lesson}: {LESSON_BY_N.get(lesson)?.title} ←
+          </Link>
+        )}
       </div>
     </div>
   );

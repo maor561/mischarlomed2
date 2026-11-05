@@ -10,6 +10,7 @@ import type { JourneySeries } from "@/lib/timemachine/journey";
 import type { LedgerEntry } from "@/lib/engine/types";
 import type { Journal } from "@/lib/mentor/journal";
 import { NoteCard } from "./mentor-box";
+import { LESSON_BY_N } from "@/lib/lessons/content";
 
 const COLORS = ["#2753d6", "#0f8a4f", "#b26a00", "#6b3fd1", "#c8372d", "#0e7c86"];
 const CASH_COLOR = "#9aa3b5";
@@ -88,10 +89,7 @@ export default function OverviewPanel({ id, view: v, version, journal, onTrade, 
         <div className="space-y-4">
           <Allocation v={v} />
           <MentorCard v={v} journal={journal} onTab={onTab} />
-          <div className="card border-dashed bg-[#fafbfd]">
-            <h3 className="font-semibold text-muted">📚 השיעור הבא</h3>
-            <p className="text-xs text-muted">כאן ייכנס מסלול השיעורים בחבילה 6.</p>
-          </div>
+          <NextLesson />
         </div>
       </div>
     </div>
@@ -384,6 +382,38 @@ function MentorCard({ v, journal: j, onTab }: { v: PortfolioView; journal: Journ
           <NoteCard n={n} />
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ---------- השיעור הבא (D27) ---------- */
+
+function NextLesson() {
+  const [p, setP] = useState<{ done: number; total: number; next: number | null } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api<{ done: number; total: number; next: number | null }>("/api/lessons/progress").then((x) => alive && setP(x), () => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const l = p?.next ? LESSON_BY_N.get(p.next) : null;
+  return (
+    <div className="card">
+      <h3 className="font-semibold mb-1 flex items-center gap-2">
+        📚 השיעור הבא <span className="text-xs text-muted font-normal num">{p ? `${p.done}/${p.total}` : ""}</span>
+      </h3>
+      {!p ? (
+        <p className="text-xs text-muted">טוען…</p>
+      ) : l ? (
+        <>
+          <b className="block text-sm">שיעור {l.n}: {l.title}</b>
+          <span className="text-xs text-muted">{l.minutes} דק&apos; · משימה: {l.mission.text}</span>
+          <Link href={`/lessons/${l.n}`} className="btn block text-center mt-2 !py-2">{p.done ? "להמשיך" : "להתחיל"} ←</Link>
+        </>
+      ) : (
+        <p className="text-sm">סיימת את כל המסלול 🎓</p>
+      )}
     </div>
   );
 }

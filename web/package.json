@@ -11,7 +11,8 @@
     "verify:engine": "tsx scripts/verify-engine.ts",
     "verify:timemachine": "tsx scripts/verify-timemachine.ts",
     "verify:events": "tsx scripts/verify-events.ts",
-    "verify:mentor": "tsx scripts/verify-mentor.ts"
+    "verify:mentor": "tsx scripts/verify-mentor.ts",
+    "verify:lessons": "tsx scripts/verify-lessons.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.15",
