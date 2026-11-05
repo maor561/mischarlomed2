@@ -10,6 +10,7 @@ import { carryLossInto, replay, type State } from "./state";
 import { BENCH, FEE_PRESETS, type Bar, type Benchmark, type Ccy, type FeeProfile, type LedgerEntry, type Market, type MonthlyDeposit, type Order, type Portfolio } from "./types";
 import { CALM, EVENTS, STORMY } from "../timemachine/events";
 import { getInfo, sectorHe } from "../market/info";
+import { mentorOnOrder, type MentorNote, type ReasonTag } from "../mentor/rules";
 
 export class UserError extends Error {}
 
@@ -40,6 +41,7 @@ function rowToOrder(r: R): Order {
     filledD: (r.filled_d as string) ?? null, fillPrice: num(r.fill_price), fillQty: num(r.fill_qty), reserved: Number(r.reserved ?? 0),
     why: (r.why as string) ?? null, exitPlan: (r.exit_plan as string) ?? null, source: r.source as Order["source"],
     splitsApplied: json<string[]>(r.splits_applied, []),
+    tags: json<string[]>(r.tags, []), mentor: json<Order["mentor"]>(r.mentor, []),
   };
 }
 
@@ -53,7 +55,7 @@ function rowToEntry(r: R): LedgerEntry {
 
 const PF_COLS = `id,name,mode,start_date::text AS start_date,sim_date::text AS sim_date,processed_through::text AS processed_through,initial_capital,fees,deposit,created_at::text AS created_at,
   end_date::text AS end_date,blind,period_name,benchmark,nav,nav_peak,last_value,dd_alerted,last_market_stop::text AS last_market_stop`;
-const ORDER_COLS = `id,portfolio_id,created_d::text AS created_d,active_from::text AS active_from,live_today,side,symbol,currency,qty,budget,type,price,validity,expires_d::text AS expires_d,status,reason,filled_d::text AS filled_d,fill_price,fill_qty,reserved,why,exit_plan,source,splits_applied`;
+const ORDER_COLS = `id,portfolio_id,created_d::text AS created_d,active_from::text AS active_from,live_today,side,symbol,currency,qty,budget,type,price,validity,expires_d::text AS expires_d,status,reason,filled_d::text AS filled_d,fill_price,fill_qty,reserved,why,exit_plan,source,splits_applied,tags,mentor`;
 const LEDGER_COLS = `id,portfolio_id,d::text AS d,kind,symbol,qty,price,cash_ils,cash_usd,fee,tax,fx_rate,order_id,meta`;
 
 export async function loadPortfolio(id: number): Promise<Portfolio> {
@@ -144,12 +146,13 @@ export async function buildMarket(p: Portfolio, symbols: Set<string>, to: string
 
 function orderUpsert(o: Order): Stmt {
   return {
-    text: `INSERT INTO orders (id,portfolio_id,created_d,active_from,live_today,side,symbol,currency,qty,budget,type,price,validity,expires_d,status,reason,filled_d,fill_price,fill_qty,reserved,why,exit_plan,source,splits_applied)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24::jsonb)
+    text: `INSERT INTO orders (id,portfolio_id,created_d,active_from,live_today,side,symbol,currency,qty,budget,type,price,validity,expires_d,status,reason,filled_d,fill_price,fill_qty,reserved,why,exit_plan,source,splits_applied,tags,mentor)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24::jsonb,$25::jsonb,$26::jsonb)
            ON CONFLICT (id) DO UPDATE SET qty=EXCLUDED.qty,price=EXCLUDED.price,status=EXCLUDED.status,reason=EXCLUDED.reason,
              filled_d=EXCLUDED.filled_d,fill_price=EXCLUDED.fill_price,fill_qty=EXCLUDED.fill_qty,reserved=EXCLUDED.reserved,splits_applied=EXCLUDED.splits_applied`,
     params: [o.id, o.portfolioId, o.createdD, o.activeFrom, o.liveToday, o.side, o.symbol, o.currency, o.qty, o.budget, o.type, o.price, o.validity,
-      o.expiresD, o.status, o.reason, o.filledD, o.fillPrice, o.fillQty, o.reserved, o.why, o.exitPlan, o.source, JSON.stringify(o.splitsApplied)],
+      o.expiresD, o.status, o.reason, o.filledD, o.fillPrice, o.fillQty, o.reserved, o.why, o.exitPlan, o.source, JSON.stringify(o.splitsApplied),
+      JSON.stringify(o.tags ?? []), JSON.stringify(o.mentor ?? [])],
   };
 }
 
@@ -307,6 +310,8 @@ export async function deletePortfolio(id: number) {
   await tx([
     { text: `DELETE FROM ledger WHERE portfolio_id=$1`, params: [id] },
     { text: `DELETE FROM orders WHERE portfolio_id=$1`, params: [id] },
+    { text: `DELETE FROM journal_reviews WHERE portfolio_id=$1`, params: [id] },
+    { text: `DELETE FROM journal_notes WHERE portfolio_id=$1`, params: [id] },
     { text: `DELETE FROM portfolios WHERE id=$1`, params: [id] },
   ]);
 }
@@ -333,13 +338,47 @@ async function refQuote(L: Loaded, symbol: string) {
   return { price: q.price, open: si.open, beforeOpen: si.beforeOpen, note };
 }
 
-export type QuoteForOrder = Estimate & { symbol: string; name: string; marketOpen: boolean; note: string; simDate: string; fx: number; held: number };
+export type QuoteForOrder = Estimate & {
+  symbol: string; name: string; marketOpen: boolean; note: string; simDate: string; fx: number; held: number;
+  mentor: { tags: ReasonTag[]; notes: MentorNote[] };
+};
 
-export async function quoteForOrder(id: number, input: Pick<OrderInput, "side" | "symbol" | "qty" | "type" | "price">): Promise<QuoteForOrder> {
+/** המדד מתחת לשיא של השנה האחרונה, ביום d (או ביום המסחר האחרון לפניו) */
+function indexFromPeakOn(m: LoadedMarket, sym: string, d: string): number | null {
+  const bars = m.series.get(sym)?.bars ?? [];
+  let i = -1;
+  for (let k = 0; k < bars.length && bars[k].d <= d; k++) i = k;
+  if (i < 0) return null;
+  const hi = Math.max(...bars.slice(Math.max(0, i - 252), i + 1).map((b) => b.close));
+  return round2((bars[i].close / hi - 1) * 100);
+}
+
+/** אוסף את העובדות על הפקודה ומריץ את כללי המנטור (D21) */
+function mentorFor(L: Loaded, kind: string, input: Pick<OrderInput, "side" | "symbol" | "why" | "exitPlan">, est: Estimate) {
+  const d = L.p.simDate;
+  const fx = L.m.fx(d);
+  const toIls = (x: number) => (est.currency === "USD" ? x * fx : x);
+  const pos = L.s.positions.get(input.symbol);
+  const posIls = pos ? pos.qty * (L.m.closeOn(pos.symbol, d) ?? est.refPrice) * (pos.currency === "USD" ? fx : 1) : 0;
+  const costIls = pos ? pos.lots.reduce((a, l) => a + l.costIls, 0) : 0;
+  const lastBuy = pos?.lots.at(-1)?.d ?? null;
+  const bench = BENCH[L.p.benchmark];
+  return mentorOnOrder({
+    side: input.side, symbol: input.symbol, kind, why: input.why ?? "", exitPlan: input.exitPlan ?? null,
+    grossIls: toIls(est.gross), feeIls: toIls(est.fee), totalIls: valueOn(L.s, L.m, d), positionIls: posIls,
+    cashIls: L.s.cash.ILS + L.s.cash.USD * fx,
+    positionPnlPct: pos && costIls ? ((posIls - costIls) / costIls) * 100 : null,
+    daysSinceLastBuy: lastBuy ? daysBetween(lastBuy, d) : null,
+    marketFromPeak: indexFromPeakOn(L.m, bench.index, d), benchLabel: bench.label,
+  });
+}
+
+export async function quoteForOrder(id: number, input: Pick<OrderInput, "side" | "symbol" | "qty" | "type" | "price"> & Partial<Pick<OrderInput, "why" | "exitPlan">>): Promise<QuoteForOrder> {
   const meta = await getInstrument(input.symbol);
   if (!meta) throw new UserError("נייר לא נמצא");
   return withLock(id, async () => {
-    const L = await load(id, [meta.symbol]);
+    const p0 = await loadPortfolio(id);
+    const L = await load(id, [meta.symbol, BENCH[p0.benchmark].index]);
     const ups = await catchUp(L);
     if (ups.length || L.ctx.entries.length) await save(L.ctx, ups);
     const ref = await refQuote(L, meta.symbol);
@@ -347,6 +386,7 @@ export async function quoteForOrder(id: number, input: Pick<OrderInput, "side" |
     return {
       ...est, symbol: meta.symbol, name: meta.name, marketOpen: ref.open, note: ref.note, simDate: L.p.simDate,
       fx: L.m.fx(L.p.simDate), held: L.s.positions.get(meta.symbol)?.qty ?? 0,
+      mentor: mentorFor(L, meta.kind, { side: input.side, symbol: meta.symbol, why: input.why ?? "", exitPlan: input.exitPlan ?? null }, est),
     };
   });
 }
@@ -358,10 +398,12 @@ export async function placeOrder(id: number, input: OrderInput): Promise<Order> 
   if (!meta) throw new UserError("נייר לא נמצא");
   const symbol = meta.symbol;
   return withLock(id, async () => {
-    const L = await load(id, [symbol]);
+    const p0 = await loadPortfolio(id);
+    const L = await load(id, [symbol, BENCH[p0.benchmark].index]);
     const ups = await catchUp(L);
     const ref = await refQuote(L, symbol);
     const est = estimate(L.ctx, { ...input, symbol }, ref.price);
+    const mentor = mentorFor(L, meta.kind, { ...input, symbol }, est);
     if (est.shortfall > 0) {
       throw new UserError(
         input.side === "buy"
@@ -378,6 +420,7 @@ export async function placeOrder(id: number, input: OrderInput): Promise<Order> 
       expiresD: input.validity === "gtc" ? addDays(created, GTC_DAYS) : null, status: "pending", reason: null,
       filledD: null, fillPrice: null, fillQty: null, reserved: input.side === "buy" ? est.reserve : 0,
       why: input.why.trim(), exitPlan: input.exitPlan?.trim() || null, source: "user", splitsApplied: [],
+      tags: mentor.tags, mentor: mentor.notes,
     };
     L.ctx.orders.push(o);
     L.ctx.touched.add(o);

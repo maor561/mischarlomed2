@@ -10,6 +10,7 @@ const withDates = (s: string) => s.replace(/(\d{4}-\d{2}-\d{2}|@\d+)/g, (d) => d
 import type { PortfolioView, QuoteForOrder } from "@/lib/engine/service";
 import type { Order } from "@/lib/engine/types";
 import InstrumentChart from "@/components/instrument-chart";
+import MentorBox from "./mentor-box";
 
 export type OrderPrefill = { side: "buy" | "sell"; symbol: string; qty: number };
 
@@ -44,7 +45,7 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
     if (!symbol) return;
     const t = setTimeout(async () => {
       try {
-        setQ(await api<QuoteForOrder>(`/api/portfolios/${id}/quote`, { method: "POST", json: { side, symbol, qty, type, price: price === "" ? null : price } }));
+        setQ(await api<QuoteForOrder>(`/api/portfolios/${id}/quote`, { method: "POST", json: { side, symbol, qty, type, price: price === "" ? null : price, why, exitPlan } }));
         setQErr("");
       } catch (e) {
         setQ(null);
@@ -53,7 +54,7 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
     }, 350);
     return () => clearTimeout(t);
     // מחשבים מחדש גם כשהקופה משתנה (למשל אחרי המרה)
-  }, [id, side, symbol, qty, type, price, view.cash.ILS, view.cash.USD, view.pending.length]);
+  }, [id, side, symbol, qty, type, price, why, exitPlan, view.cash.ILS, view.cash.USD, view.pending.length]);
 
   async function submit() {
     setBusy(true);
@@ -166,7 +167,7 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
             {ccy === "USD" && <Row k="בשקלים" v={money(q.total * q.fx, "ILS")} />}
             {side === "buy" && (
               <p className="text-xs text-muted">
-                {type === "limit" ? "בלימיט נשמר בקופה הסכום המלא לפי מחיר הלימיט." : <>נשמר בקופה עד הביצוע: <b className="num">{money(q.reserve, ccy)}</b> (הערכה + 10%, למקרה שהמחיר יקפוץ).</>}{" "}
+                {type === "limit" ? "בלימיט נשמר בקופה הסכום המלא לפי מחיר הלימיט." : <>נשמר בקופה עד הביצוע: <b className="num">{money(q.reserve, ccy)}</b> (הערכה ועוד <span className="num">10%</span>, למקרה שהמחיר יקפוץ).</>}{" "}
                 פנוי בקופה: <span className="num">{money(q.available, ccy)}</span>
               </p>
             )}
@@ -189,6 +190,7 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
             )}
           </>
         )}
+        {q && <MentorBox mentor={q.mentor} hasWhy={why.trim().length >= 3} />}
         {err && <div className="text-sm rounded-lg p-2.5 bg-down-soft text-down">{err}</div>}
         <button className="btn w-full" disabled={busy || playing || !q || q.shortfall > 0 || why.trim().length < 3} onClick={submit}>
           {busy ? "שולח…" : "שלח פקודה"}

@@ -13,9 +13,11 @@ import StopModal from "./stop-modal";
 import JourneyChart from "./journey-chart";
 import ReportPanel from "./report-panel";
 import OverviewPanel from "./overview-panel";
+import JournalPanel from "./journal-panel";
+import type { Journal } from "@/lib/mentor/journal";
 
 /** חמש לשוניות ראשיות (D20). "עוד" מכילה את המסכים הפחות שכיחים */
-type Tab = "overview" | "order" | "chart" | "history" | "cash" | "tax" | "report" | "details";
+type Tab = "overview" | "order" | "chart" | "history" | "journal" | "cash" | "tax" | "report" | "details";
 const MAIN = [
   { k: "overview", icon: "💼", label: "התיק שלי" },
   { k: "order", icon: "📝", label: "מסחר" },
@@ -24,12 +26,13 @@ const MAIN = [
   { k: "more", icon: "☰", label: "עוד" },
 ] as const;
 const MORE: { k: Tab; label: string; timeOnly?: boolean }[] = [
+  { k: "journal", label: "📓 יומן" },
   { k: "cash", label: "💱 מזומן ומט\"ח" },
   { k: "tax", label: "🧾 מס ועלויות" },
   { k: "report", label: "📊 דו\"ח המסע", timeOnly: true },
   { k: "details", label: "⚙️ פרטי התיק" },
 ];
-const mainOf = (t: Tab) => (["cash", "tax", "report", "details"].includes(t) ? "more" : t);
+const mainOf = (t: Tab) => (["journal", "cash", "tax", "report", "details"].includes(t) ? "more" : t);
 
 export default function PortfolioScreen() {
   const { id } = useParams<{ id: string }>();
@@ -49,6 +52,8 @@ export default function PortfolioScreen() {
   const [stop, setStop] = useState<Stop | null>(null);
   const [playing, setPlaying] = useState(false);
   const [resume, setResume] = useState(0);
+  const [journal, setJournal] = useState<Journal | null>(null);
+  const [jv, setJv] = useState(0);
 
   const setTab = (t: Tab) => {
     setTabState(t);
@@ -89,6 +94,16 @@ export default function PortfolioScreen() {
     },
     [load],
   );
+
+  const versionKey = v ? `${v.portfolio.simDate}-${v.history.length}-${v.pending.length}-${jv}` : "";
+  useEffect(() => {
+    if (!versionKey) return;
+    let alive = true;
+    api<Journal>(`/api/portfolios/${id}/journal`).then((x) => alive && setJournal(x), () => {});
+    return () => {
+      alive = false;
+    };
+  }, [id, versionKey]);
 
   async function remove() {
     if (!v || !confirm(`למחוק את התיק "${v.portfolio.name}" עם כל ההיסטוריה שלו? אי אפשר לבטל.`)) return;
@@ -142,6 +157,10 @@ export default function PortfolioScreen() {
             setStop(null);
             setTab("report");
           }}
+          onNote={async (text) => {
+            await api(`/api/portfolios/${id}/journal/note`, { method: "POST", json: { text, context: stop.title } });
+            setJv((n) => n + 1);
+          }}
         />
       )}
       {flash && (
@@ -158,6 +177,7 @@ export default function PortfolioScreen() {
             <button key={x.k} onClick={() => goMain(x.k)} className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px ${active === x.k ? "border-brand text-brand font-semibold" : "border-transparent text-muted"}`}>
               {x.icon} {x.label}
               {x.k === "history" && v.pending.length > 0 && <span className="ms-1 text-xs bg-warn-soft text-warn rounded-full px-1.5">{v.pending.length}</span>}
+              {x.k === "more" && (journal?.dueCount ?? 0) > 0 && <span className="ms-1 text-xs bg-time text-white rounded-full px-1.5">⏰{journal!.dueCount}</span>}
             </button>
           ))}
         </div>
@@ -166,12 +186,14 @@ export default function PortfolioScreen() {
             {more.map((m) => (
               <button key={m.k} className={`chip ${tab === m.k ? "chip-on" : ""}`} onClick={() => setTab(m.k)}>
                 {m.label}
+                {m.k === "journal" && (journal?.dueCount ?? 0) > 0 && <span className="ms-1 text-xs bg-time text-white rounded-full px-1.5">⏰{journal!.dueCount}</span>}
               </button>
             ))}
           </div>
         )}
 
-        {tab === "overview" && <OverviewPanel id={id} view={v} version={version} onTrade={trade} onTab={setTab} />}
+        {tab === "overview" && <OverviewPanel id={id} view={v} version={version} journal={journal} onTrade={trade} onTab={setTab} />}
+        {tab === "journal" && <JournalPanel key={journal ? "loaded" : "loading"} id={id} journal={journal} onChange={() => setJv((n) => n + 1)} />}
 
         {/* טופס הפקודה נשאר טעון (מוסתר) כדי שלא יתאפס כשקופצים להמרה וחוזרים */}
         <div hidden={tab !== "order"}>
@@ -224,6 +246,7 @@ export default function PortfolioScreen() {
             <span className="block text-lg leading-tight">{x.icon}</span>
             {x.label}
             {x.k === "history" && v.pending.length > 0 && <span className="absolute top-1 left-1/2 ms-2 w-2 h-2 rounded-full bg-warn" />}
+            {x.k === "more" && (journal?.dueCount ?? 0) > 0 && <span className="absolute top-1 left-1/2 ms-2 w-2 h-2 rounded-full bg-time" />}
           </button>
         ))}
       </nav>

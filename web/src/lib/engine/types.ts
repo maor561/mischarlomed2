@@ -85,6 +85,9 @@ export type Order = {
   exitPlan: string | null;
   source: "user" | "auto";
   splitsApplied: string[];
+  /** סוגי הנימוק שהמנטור זיהה, והערות המנטור בזמן השליחה (D21–D22) */
+  tags?: string[];
+  mentor?: { id: string; level: string; icon: string; title: string; body: string }[];
 };
 
 export type LedgerKind = "deposit" | "fx" | "buy" | "sell" | "dividend" | "split" | "custody";

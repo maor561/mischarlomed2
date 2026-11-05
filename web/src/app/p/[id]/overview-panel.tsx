@@ -8,6 +8,8 @@ import { api, dateHe, money, pct, signed, tone } from "@/lib/format";
 import type { PortfolioView } from "@/lib/engine/service";
 import type { JourneySeries } from "@/lib/timemachine/journey";
 import type { LedgerEntry } from "@/lib/engine/types";
+import type { Journal } from "@/lib/mentor/journal";
+import { NoteCard } from "./mentor-box";
 
 const COLORS = ["#2753d6", "#0f8a4f", "#b26a00", "#6b3fd1", "#c8372d", "#0e7c86"];
 const CASH_COLOR = "#9aa3b5";
@@ -16,11 +18,12 @@ type Props = {
   id: string;
   view: PortfolioView;
   version: string;
+  journal: Journal | null;
   onTrade: (side: "buy" | "sell", symbol: string, qty?: number) => void;
-  onTab: (tab: "chart" | "history" | "order") => void;
+  onTab: (tab: "chart" | "history" | "order" | "journal") => void;
 };
 
-export default function OverviewPanel({ id, view: v, version, onTrade, onTab }: Props) {
+export default function OverviewPanel({ id, view: v, version, journal, onTrade, onTab }: Props) {
   const [s, setS] = useState<JourneySeries | null>(null);
   useEffect(() => {
     let alive = true;
@@ -84,10 +87,7 @@ export default function OverviewPanel({ id, view: v, version, onTrade, onTab }: 
         </div>
         <div className="space-y-4">
           <Allocation v={v} />
-          <div className="card border-dashed bg-[#fafbfd]">
-            <h3 className="font-semibold text-muted">🤖 המנטור</h3>
-            <p className="text-xs text-muted">כאן ייכנס המנטור בחבילה 5.</p>
-          </div>
+          <MentorCard v={v} journal={journal} onTab={onTab} />
           <div className="card border-dashed bg-[#fafbfd]">
             <h3 className="font-semibold text-muted">📚 השיעור הבא</h3>
             <p className="text-xs text-muted">כאן ייכנס מסלול השיעורים בחבילה 6.</p>
@@ -351,5 +351,39 @@ function Allocation({ v }: { v: PortfolioView }) {
         </div>
       )}
     </>
+  );
+}
+
+/* ---------- כרטיס המנטור (D21) ---------- */
+
+function MentorCard({ v, journal: j, onTab }: { v: PortfolioView; journal: Journal | null; onTab: Props["onTab"] }) {
+  const total = v.totals.total || 1;
+  const cashPct = (v.totals.cashIls / total) * 100;
+  const notes: { level: string; icon: string; title: string; body: string; go?: boolean }[] = [];
+  if (j && j.dueCount > 0) {
+    const due = j.entries.filter((e) => e.due).slice(0, 3).map((e) => `${e.symbol} מ-${dateHe(e.d)}`).join(", ");
+    notes.push({ level: "warn", icon: "⏰", title: `${j.dueCount} עסקאות מחכות לבדיקה`, body: due, go: true });
+  }
+  if (v.positions.length && cashPct > 50) {
+    notes.push({ level: "warn", icon: "💤", title: `${Math.round(cashPct)}% מהתיק במזומן`, body: "זו החלטה? אם כן, כתוב אותה ביומן. אם לא, כדאי לחשוב מה התוכנית לכסף הזה." });
+  }
+  if (!v.positions.length) {
+    notes.push({ level: "info", icon: "👋", title: "עוד לא קנית כלום", body: "התחל בפקודה אחת, וכתוב למה. המנטור יגיב לנימוק שלך, וביומן תוכל לחזור אליו אחר כך." });
+  }
+  if (j?.insight) notes.push({ level: "good", icon: "📈", title: "הדפוס שלך", body: j.insight });
+  const last = j?.entries[0];
+  if (last && last.mentor.length && notes.length < 3) {
+    const n = last.mentor[0];
+    notes.push({ level: n.level, icon: n.icon, title: `על ${last.side === "buy" ? "הקנייה" : "המכירה"} האחרונה (${last.symbol}): ${n.title}`, body: n.body });
+  }
+  return (
+    <div className="card space-y-2">
+      <h3 className="font-semibold flex items-center gap-2">🤖 המנטור <button className="text-xs font-normal text-brand underline" onClick={() => onTab("journal")}>ליומן ←</button></h3>
+      {!j ? <p className="text-xs text-muted">טוען…</p> : notes.length === 0 ? <p className="text-sm text-muted">אין הערות כרגע. 👍</p> : notes.slice(0, 3).map((n, i) => (
+        <div key={i} className={n.go ? "cursor-pointer" : ""} onClick={() => n.go && onTab("journal")}>
+          <NoteCard n={n} />
+        </div>
+      ))}
+    </div>
   );
 }

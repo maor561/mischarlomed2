@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { dateHe, pct } from "@/lib/format";
 import type { Stop } from "@/lib/engine/service";
 
@@ -20,14 +21,18 @@ const QUESTION: Partial<Record<Stop["kind"], string>> = {
   event: "איך אתה חושב שהשוק יגיב? נסה לנחש לפני שאתה ממשיך, ותבדוק אם צדקת.",
 };
 
-export default function StopModal({ stop, blind, onContinue, onOrder, onReport, onClose }: {
+export default function StopModal({ stop, blind, onContinue, onOrder, onReport, onClose, onNote }: {
   stop: Stop;
   blind: boolean;
   onContinue: () => void;
   onOrder: () => void;
   onReport: () => void;
   onClose: () => void;
+  onNote: (text: string) => Promise<void>;
 }) {
+  const [writing, setWriting] = useState(false);
+  const [text, setText] = useState("");
+  const [saved, setSaved] = useState(false);
   const h = HEAD[stop.kind];
   const isUp = stop.kind === "market" && (stop.marketChange ?? 0) > 0;
   const done = stop.kind === "end" || stop.kind === "present";
@@ -56,6 +61,13 @@ export default function StopModal({ stop, blind, onContinue, onOrder, onReport, 
             <Mini label={`${stop.marketLabel} מהשיא השנתי`} v={stop.marketFromPeak} />
           </div>
           {QUESTION[stop.kind] && <div className="rounded-lg p-2.5 bg-warn-soft text-[#6b4100]">🤔 <b>שאלה למחשבה:</b> {QUESTION[stop.kind]}</div>}
+          {writing && !saved && (
+            <div className="space-y-2">
+              <textarea className="input" rows={2} autoFocus value={text} onChange={(e) => setText(e.target.value)} placeholder="מה אתה חושב עכשיו, ומה תעשה?" />
+              <button className="btn !py-1.5 text-sm" disabled={!text.trim()} onClick={async () => { await onNote(text); setSaved(true); }}>שמור ביומן</button>
+            </div>
+          )}
+          {saved && <div className="rounded-lg p-2.5 bg-up-soft text-up">✓ נשמר ביומן. בסוף המסע תוכל לראות מה חשבת ברגע הזה.</div>}
         </div>
         <div className="flex gap-2 flex-wrap px-5 pb-4">
           {done ? (
@@ -64,6 +76,7 @@ export default function StopModal({ stop, blind, onContinue, onOrder, onReport, 
             <>
               <button className="btn !bg-time" onClick={onContinue}>▶ להמשיך</button>
               <button className="px-4 py-2.5 rounded-lg border border-brand text-brand font-semibold" onClick={onOrder}>📝 לפקודה</button>
+              {!writing && !saved && <button className="px-4 py-2.5 rounded-lg border border-line text-ink" onClick={() => setWriting(true)}>✍️ לכתוב ביומן</button>}
             </>
           )}
           <button className="px-4 py-2.5 rounded-lg text-muted" onClick={onClose}>סגור</button>

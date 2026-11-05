@@ -126,6 +126,27 @@ ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS last_value DOUBLE PRECISION;
 ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS dd_alerted BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS last_market_stop DATE;
 
+-- ===== חבילה 5: יומן ומנטור =====
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS tags JSONB;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS mentor JSONB;
+-- בדיקה חוזרת של עסקה (D24): אחת לכל פקודה
+CREATE TABLE IF NOT EXISTS journal_reviews (
+  order_id     INTEGER PRIMARY KEY,
+  portfolio_id INTEGER NOT NULL,
+  d            DATE NOT NULL,
+  rating       TEXT NOT NULL,
+  lesson       TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS journal_notes (
+  id           SERIAL PRIMARY KEY,
+  portfolio_id INTEGER NOT NULL,
+  d            DATE NOT NULL,
+  text         TEXT NOT NULL,
+  context      TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- ===== חבילה 4: מידע על נייר (סקטור ונתוני חברה), מטמון ל-12 שעות =====
 CREATE TABLE IF NOT EXISTS instrument_info (
   symbol     TEXT PRIMARY KEY,

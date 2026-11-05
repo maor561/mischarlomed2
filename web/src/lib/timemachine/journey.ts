@@ -7,6 +7,7 @@ import { apply, emptyState } from "../engine/state";
 import { BENCH, FEE_PRESETS, type Ccy, type LedgerEntry, type Portfolio } from "../engine/types";
 import { buildMarket, loadLedger, loadOrders, loadPortfolio, UserError, valueOn, type LoadedMarket } from "../engine/service";
 import { EVENTS } from "./events";
+import { journal } from "../mentor/journal";
 
 export const isFinished = (p: Portfolio) => p.mode === "time" && !!p.endDate && p.simDate >= p.endDate;
 
@@ -215,6 +216,11 @@ export async function journeyReport(id: number) {
   const r1 = (x: number) => Math.round(x * 10) / 10;
   const diff = r1(r1(series.ret.portfolio) - r1(series.ret.bench));
   if (panic) lessons.push(`המכירה הכי יקרה שלך הייתה של ${panic.symbol}, כשהשוק היה ${Math.abs(panic.marketFromPeak).toFixed(0)}% מתחת לשיא. אילו החזקת, היית מרוויח עוד ₪${Math.round(panic.missedIls).toLocaleString("he-IL")}. מכירה בשפל היא הטעות הכי נפוצה של משקיעים מתחילים.`);
+  // מהיומן (D22): הדפוס לפי סוג הנימוק, ומה שסימנת בבדיקות החוזרות
+  const jr = await journal(id).catch(() => null);
+  if (jr?.insight) lessons.push(jr.insight);
+  const wrong = jr?.entries.filter((e) => e.review?.rating === "wrong" || e.review?.rating === "luck") ?? [];
+  if (wrong.length >= 2) lessons.push(`בבדיקות החוזרות סימנת ${wrong.length} עסקאות כ"לא נכון" או "מזל". ${wrong.map((e) => e.review?.lesson).filter(Boolean).slice(0, 2).map((l) => `"${l}"`).join(" · ")}`.trim());
   if (series.maxWeight.pct > 25) lessons.push(`מניה אחת (${series.maxWeight.symbol}) הגיעה ל-${series.maxWeight.pct.toFixed(0)}% מהתיק. כשמניה אחת היא חלק גדול כל כך, מה שקורה לחברה אחת קובע את כל התוצאה. פיזור מגביל את הנזק.`);
   if (allTrades.length === 0) lessons.push("לא ביצעת אף עסקה, והכסף נשאר במזומן. במסע הבא נסה לפחות לקנות את המדד בהתחלה, ולראות מה קורה לו.");
   else if (diff >= 1) lessons.push(`ניצחת את ${series.benchLabel} ב-${diff.toFixed(1)}%. כדאי לבדוק אם זה בזכות החלטה שאפשר לחזור עליה, או בגלל מזל של מניה אחת.`);

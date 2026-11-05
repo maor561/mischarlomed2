@@ -107,7 +107,7 @@ export default function ReportPanel({ id, version }: { id: string; version: stri
             </div>
           ))
         )}
-        <p className="text-xs text-muted mt-1">בחבילה 5 המנטור יכתוב את התובנות האלה אישית, לפי מה שכתבת ביומן.</p>
+        <p className="text-xs text-muted mt-1">התובנות מחושבות לפי כללים קבועים, מהעסקאות ומהיומן שלך (כולל הבדיקות החוזרות).</p>
       </div>
 
       {r.finished && (
