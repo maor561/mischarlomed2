@@ -124,6 +124,8 @@ async function compute(id: number) {
     final: { value: last.v, bench: last.b, deposits: round2(deposits) },
     ret: { portfolio: pct(last.v), bench: pct(last.b), twr: round2((nav - 1) * 100), benchTwr: round2((bnav - 1) * 100) },
     drawdown: dd,
+    /** כמה התיק מתחת לשיא שלו עכשיו (תשואה משוקללת זמן) */
+    currentFromPeak: round2((nav / peak - 1) * 100),
     maxWeight: { ...maxW, pct: round2(maxW.pct * 100) },
     avgCashPct: cashN ? round2((cashSum / cashN) * 100) : 100,
     events: p.blind ? [] : EVENTS.filter((e) => e.d >= p.startDate && e.d <= end),

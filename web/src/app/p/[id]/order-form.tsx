@@ -1,5 +1,6 @@
 "use client";
 
+import Term from "@/components/term";
 import { useEffect, useState } from "react";
 import SymbolSearch from "@/components/symbol-search";
 import { api, dateHe, money } from "@/lib/format";
@@ -8,8 +9,7 @@ import { api, dateHe, money } from "@/lib/format";
 const withDates = (s: string) => s.replace(/(\d{4}-\d{2}-\d{2}|@\d+)/g, (d) => dateHe(d));
 import type { PortfolioView, QuoteForOrder } from "@/lib/engine/service";
 import type { Order } from "@/lib/engine/types";
-import type { InstrumentChart } from "@/lib/timemachine/journey";
-import LineChart from "@/components/line-chart";
+import InstrumentChart from "@/components/instrument-chart";
 
 export type OrderPrefill = { side: "buy" | "sell"; symbol: string; qty: number };
 
@@ -110,12 +110,12 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
             </span>
           </div>
         )}
-        {symbol && <MiniChart id={id} symbol={symbol} version={view.portfolio.simDate} />}
+        {symbol && <InstrumentChart id={id} symbol={symbol} version={view.portfolio.simDate} />}
         {q && <div className={`text-sm rounded-lg p-2.5 ${q.marketOpen ? "bg-up-soft text-up" : "bg-time-soft text-time"}`}>{q.marketOpen ? "🟢 " : "🌙 "}{withDates(q.note)}</div>}
         {qErr && <div className="text-sm rounded-lg p-2.5 bg-down-soft text-down">{withDates(qErr)}</div>}
 
         <div>
-          <span className="text-xs text-muted">סוג פקודה</span>
+          <span className="text-xs text-muted">סוג פקודה · <Term id="market-order">שוק</Term> · <Term id="limit">לימיט</Term> · <Term id="stop">סטופ</Term></span>
           <div className="grid grid-cols-3 gap-2 mt-1">
             {TYPES.map((t) => (
               <button key={t.k} onClick={() => setType(t.k)} className={`text-start rounded-lg border px-3 py-2 ${type === t.k ? "border-brand bg-brand-soft" : "border-line bg-white"}`}>
@@ -138,7 +138,7 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
           ) : <div />}
         </div>
         <label className="block">
-          <span className="text-xs text-muted">תוקף</span>
+          <span className="text-xs text-muted"><Term id="validity">תוקף</Term></span>
           <select className="input mt-1" value={validity} onChange={(e) => setValidity(e.target.value as "day" | "gtc")}>
             <option value="day">עד סוף יום המסחר</option>
             <option value="gtc">עד ביטול (עד 90 יום)</option>
@@ -195,55 +195,6 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
         </button>
         {playing && <p className="text-xs text-time">⏸ עצור את הנגן כדי לשלוח פקודה.</p>}
         {why.trim().length < 3 && q && <p className="text-xs text-muted">כדי לשלוח צריך לכתוב למה.</p>}
-      </div>
-    </div>
-  );
-}
-
-const CHART_RANGES = [
-  { days: 31, label: "חודש" },
-  { days: 365, label: "שנה" },
-  { days: 1826, label: "5 שנים" },
-];
-
-/** גרף הנייר עד היום שבו נמצאים בסימולציה. אין הצצה לעתיד */
-function MiniChart({ id, symbol, version }: { id: string; symbol: string; version: string }) {
-  const [days, setDays] = useState(365);
-  const [c, setC] = useState<InstrumentChart | null>(null);
-  const [err, setErr] = useState("");
-  useEffect(() => {
-    let alive = true;
-    api<InstrumentChart>(`/api/portfolios/${id}/chart?symbol=${encodeURIComponent(symbol)}&days=${days}`).then(
-      (x) => {
-        if (!alive) return;
-        setC(x);
-        setErr("");
-      },
-      (e) => alive && setErr((e as Error).message),
-    );
-    return () => {
-      alive = false;
-    };
-  }, [id, symbol, days, version]);
-  if (err) return null;
-  if (!c) return <div className="h-[150px] grid place-items-center text-xs text-muted">טוען גרף…</div>;
-  const first = c.bars[0]?.c ?? 0, last = c.bars.at(-1)?.c ?? 0;
-  const ch = first ? ((last / first - 1) * 100).toFixed(1) : "0";
-  return (
-    <div>
-      <LineChart
-        dates={c.bars.map((b) => b.d)}
-        lines={[{ key: "c", label: "מחיר סגירה", color: last >= first ? "var(--up)" : "var(--down)", values: c.bars.map((b) => b.c) }]}
-        height={150}
-        format={(n) => money(n, c.currency)}
-      />
-      <div className="flex gap-1.5 items-center mt-1">
-        {CHART_RANGES.map((r) => (
-          <button key={r.days} className={`chip text-xs ${days === r.days ? "chip-on" : ""}`} onClick={() => setDays(r.days)}>
-            {r.label}
-          </button>
-        ))}
-        <span className={`text-xs num ms-2 ${Number(ch) >= 0 ? "text-up" : "text-down"}`}>{Number(ch) > 0 ? "+" : ""}{ch}% בתקופה</span>
       </div>
     </div>
   );

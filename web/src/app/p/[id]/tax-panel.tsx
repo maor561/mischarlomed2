@@ -1,5 +1,6 @@
 "use client";
 
+import Term from "@/components/term";
 import { money, signed, tone } from "@/lib/format";
 import type { PortfolioView } from "@/lib/engine/service";
 
@@ -20,7 +21,7 @@ export default function TaxPanel({ view }: { view: PortfolioView }) {
   return (
     <div className="space-y-4">
       <div className="card text-sm text-muted">
-        מס רווחי הון בישראל: 25% מהרווח. הפסד מקזז רווח באותה שנה (ואז מקבלים החזר מס), ומה שנשאר עובר לשנים הבאות (&quot;מגן מס&quot;).
+        <Term id="cgt">מס רווחי הון</Term> בישראל: 25% מהרווח. הפסד מקזז רווח באותה שנה (ואז מקבלים החזר מס), ומה שנשאר עובר לשנים הבאות (<Term id="loss-shield">מגן מס</Term>).
         הרווח על מניה אמריקאית מחושב בשקלים: מחיר המכירה בשער של יום המכירה, פחות מחיר הקנייה בשער של יום הקנייה.
       </div>
 

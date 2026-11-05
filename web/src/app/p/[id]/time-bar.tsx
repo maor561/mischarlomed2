@@ -126,8 +126,8 @@ export default function TimeBar({ id, view, onAdvanced, onPlayingChange, resume 
   return (
     <div className="bg-time-soft border-b border-[#ddd2f7] px-4 md:px-6 py-2.5">
       <div className="flex items-center gap-3 flex-wrap">
-        <b className="text-base">{p.name}</b>
-        <span className="text-xs px-2 py-0.5 rounded-full bg-time text-white">{p.blind ? "🎭 מסע עיוור" : "⏳ מכונת זמן"}</span>
+        <b className="text-base hidden md:inline">{p.name}</b>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-time text-white hidden md:inline">{p.blind ? "🎭 מסע עיוור" : "⏳ מכונת זמן"}</span>
         <button
           className="w-10 h-10 rounded-full bg-time text-white text-lg disabled:opacity-40"
           disabled={finished || busy}
@@ -141,7 +141,11 @@ export default function TimeBar({ id, view, onAdvanced, onPlayingChange, resume 
           <div className="text-lg font-bold text-time num leading-tight">{dateHe(p.simDate)}</div>
         </div>
         <span className="flex-1" />
-        <div className="flex gap-1.5 items-center flex-wrap">
+        {/* טלפון: שורה אחת. מהירות וצעדים נפתחים מ-⚙️ (D20) */}
+        <button className="chip text-xs md:hidden" onClick={() => setShowStops(!showStops)} title="מהירות, צעדים ועצירות">
+          ⚙️
+        </button>
+        <div className={`${showStops ? "flex" : "hidden"} md:flex gap-1.5 items-center flex-wrap w-full md:w-auto`}>
           <span className="text-xs text-muted">מהירות:</span>
           {SPEEDS.map((s) => (
             <button key={s.days} className={`chip text-xs ${speed === s.days ? "!bg-time !text-white !border-time" : ""}`} onClick={() => { setSpeed(s.days); persist({ speed: s.days }); }}>
@@ -158,17 +162,17 @@ export default function TimeBar({ id, view, onAdvanced, onPlayingChange, resume 
               {l}
             </button>
           ))}
-          <button className="chip text-xs" onClick={() => setShowStops(!showStops)} title="מתי הנגן עוצר">
+          <button className="chip text-xs hidden md:inline-block" onClick={() => setShowStops(!showStops)} title="מתי הנגן עוצר">
             ⚙️ עצירות
           </button>
         </div>
       </div>
       {pct != null && (
         <div className="mt-2">
-          <div className="h-2 bg-white rounded-full overflow-hidden">
+          <div className="h-1.5 md:h-2 bg-white rounded-full overflow-hidden">
             <i className="block h-full bg-time transition-all" style={{ width: `${pct}%` }} />
           </div>
-          <div className="flex justify-between text-xs text-muted mt-0.5 num">
+          <div className="hidden md:flex justify-between text-xs text-muted mt-0.5 num">
             <span>{dateHe(p.startDate)} · התחלה</span>
             <span>{finished ? "🏁 המסע הסתיים" : `יום ${now} מתוך ${total}`}</span>
             <span>סוף המסע · {dateHe(p.endDate)}</span>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { api, dateHe, money, pct, signed, tone } from "@/lib/format";
+import { api, dateHe, money } from "@/lib/format";
 import type { PortfolioView, Stop } from "@/lib/engine/service";
 import OrderForm, { type OrderPrefill } from "./order-form";
 import FxForm from "./fx-form";
@@ -12,31 +12,48 @@ import TimeBar, { type AdvanceResult } from "./time-bar";
 import StopModal from "./stop-modal";
 import JourneyChart from "./journey-chart";
 import ReportPanel from "./report-panel";
+import OverviewPanel from "./overview-panel";
 
-const TABS = [
-  { k: "overview", label: "סקירה" },
-  { k: "chart", label: "📈 מול המדד" },
-  { k: "order", label: "פקודה" },
-  { k: "cash", label: "מזומן ומט\"ח" },
-  { k: "history", label: "פקודות והיסטוריה" },
-  { k: "tax", label: "מס ועלויות" },
-  { k: "report", label: "📊 דו\"ח המסע", timeOnly: true },
+/** חמש לשוניות ראשיות (D20). "עוד" מכילה את המסכים הפחות שכיחים */
+type Tab = "overview" | "order" | "chart" | "history" | "cash" | "tax" | "report" | "details";
+const MAIN = [
+  { k: "overview", icon: "💼", label: "התיק שלי" },
+  { k: "order", icon: "📝", label: "מסחר" },
+  { k: "chart", icon: "📈", label: "מול המדד" },
+  { k: "history", icon: "📜", label: "היסטוריה" },
+  { k: "more", icon: "☰", label: "עוד" },
 ] as const;
-type Tab = (typeof TABS)[number]["k"];
+const MORE: { k: Tab; label: string; timeOnly?: boolean }[] = [
+  { k: "cash", label: "💱 מזומן ומט\"ח" },
+  { k: "tax", label: "🧾 מס ועלויות" },
+  { k: "report", label: "📊 דו\"ח המסע", timeOnly: true },
+  { k: "details", label: "⚙️ פרטי התיק" },
+];
+const mainOf = (t: Tab) => (["cash", "tax", "report", "details"].includes(t) ? "more" : t);
 
 export default function PortfolioScreen() {
   const { id } = useParams<{ id: string }>();
+  const sp = useSearchParams();
   const router = useRouter();
   const [v, setV] = useState<PortfolioView | null>(null);
   const [err, setErr] = useState("");
-  const [tab, setTab] = useState<Tab>("overview");
-  const [prefill, setPrefill] = useState<OrderPrefill | null>(null);
+  // קישור מדף נייר: ?tab=order&side=buy&symbol=AAPL
+  const [tab, setTabState] = useState<Tab>(() => (sp.get("tab") as Tab) || "overview");
+  const [prefill, setPrefill] = useState<OrderPrefill | null>(() => {
+    const symbol = sp.get("symbol");
+    return symbol ? { side: sp.get("side") === "sell" ? "sell" : "buy", symbol, qty: Number(sp.get("qty") ?? 1) || 1 } : null;
+  });
   const [fxPrefill, setFxPrefill] = useState<number | null>(null);
   const [orderKey, setOrderKey] = useState(0);
   const [flash, setFlash] = useState("");
   const [stop, setStop] = useState<Stop | null>(null);
   const [playing, setPlaying] = useState(false);
   const [resume, setResume] = useState(0);
+
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    window.scrollTo({ top: 0 });
+  };
 
   const load = useCallback(async () => {
     try {
@@ -83,10 +100,15 @@ export default function PortfolioScreen() {
   if (!v) return <main className="max-w-6xl mx-auto p-6"><div className="card text-muted">טוען תיק… (בפעם הראשונה מורידים היסטוריית מחירים)</div></main>;
 
   const p = v.portfolio;
-  const t = v.totals;
   const isTime = p.mode === "time";
-
   const version = `${p.simDate}-${v.history.length}-${v.pending.length}`;
+  const more = MORE.filter((m) => !m.timeOnly || isTime);
+  const active = mainOf(tab);
+  const goMain = (k: (typeof MAIN)[number]["k"]) => setTab(k === "more" ? (active === "more" ? tab : "cash") : k);
+  const trade = (side: "buy" | "sell", symbol: string, qty?: number) => {
+    setPrefill({ side, symbol, qty: qty ?? 1 });
+    setTab("order");
+  };
 
   return (
     <>
@@ -129,76 +151,27 @@ export default function PortfolioScreen() {
         </div>
       )}
 
-      <main className="max-w-6xl mx-auto p-4 md:p-6 space-y-4">
-        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
-          <Kpi label="שווי התיק" value={money(t.total, "ILS", 0)} sub={`הופקדו ${money(t.deposited, "ILS", 0)}`} />
-          <Kpi label="רווח/הפסד נטו" value={signed(t.pnl, "ILS", 0)} sub={pct(t.pnlPct)} cls={tone(t.pnl)} />
-          <Kpi label="מזומן (בשקלים)" value={money(t.cashIls, "ILS", 0)} sub={`${t.total ? Math.round((t.cashIls / t.total) * 100) : 0}% מהתיק`} />
-          <Kpi label="בהחזקות" value={money(t.holdingsIls, "ILS", 0)} sub={`${v.positions.length} ניירות`} />
-        </div>
-
-        <div className="flex gap-1 border-b border-line overflow-x-auto">
-          {TABS.filter((x) => !("timeOnly" in x) || isTime).map((x) => (
-            <button key={x.k} onClick={() => setTab(x.k)} className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px ${tab === x.k ? "border-brand text-brand font-semibold" : "border-transparent text-muted"}`}>
-              {x.label}
+      <main className="max-w-6xl mx-auto p-4 md:p-6 pb-24 md:pb-6 space-y-4">
+        {/* מחשב: לשוניות למעלה */}
+        <div className="hidden md:flex gap-1 border-b border-line">
+          {MAIN.map((x) => (
+            <button key={x.k} onClick={() => goMain(x.k)} className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px ${active === x.k ? "border-brand text-brand font-semibold" : "border-transparent text-muted"}`}>
+              {x.icon} {x.label}
               {x.k === "history" && v.pending.length > 0 && <span className="ms-1 text-xs bg-warn-soft text-warn rounded-full px-1.5">{v.pending.length}</span>}
             </button>
           ))}
         </div>
-
-        {tab === "overview" && (
-          <div className="grid gap-4 md:grid-cols-[2fr_1fr]">
-            <div className="card overflow-x-auto">
-              <h3 className="font-semibold mb-2">ההחזקות שלי</h3>
-              {v.positions.length === 0 ? (
-                <p className="text-muted text-sm py-4">
-                  עוד אין מניות בתיק. <button className="text-brand underline" onClick={() => setTab("order")}>לשליחת פקודה ראשונה</button>
-                </p>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-xs text-muted border-b border-line">
-                      <th className="text-start py-2">נייר</th><th className="text-start">כמות</th><th className="text-start">קנייה ממוצעת</th><th className="text-start">מחיר</th><th className="text-start">שווי (₪)</th><th className="text-start">רווח/הפסד</th><th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {v.positions.map((x) => (
-                      <tr key={x.symbol} className="border-b border-line">
-                        <td className="py-2"><b className="num">{x.symbol}</b> <span className="text-xs text-muted">{x.currency === "USD" ? "ארה\"ב" : "ת\"א"}</span></td>
-                        <td className="num">{x.qty}</td>
-                        <td className="num">{money(x.avgCost, x.currency)}</td>
-                        <td className="num">{money(x.price, x.currency)}</td>
-                        <td className="num">{money(x.valueIls, "ILS", 0)}</td>
-                        <td className={`num ${tone(x.pnlIls)}`} title={`במטבע הנייר: ${signed(x.pnlCcy, x.currency)}`}>{signed(x.pnlIls, "ILS", 0)}</td>
-                        <td>
-                          <button className="text-xs text-down underline" onClick={() => { setPrefill({ side: "sell", symbol: x.symbol, qty: x.qty }); setTab("order"); }}>
-                            מכירה
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-              <p className="text-xs text-muted mt-2">רווח/הפסד בשקלים כולל את השינוי בשער הדולר ואת עמלות הקנייה. מחיר הקנייה הממוצע כולל עמלה.</p>
-            </div>
-            <div className="space-y-4">
-              <div className="card space-y-2">
-                <h3 className="font-semibold">הקופות</h3>
-                <Wallet flag="🇮🇱" label="שקלים" amount={v.cash.ILS} ccy="ILS" reserved={v.reserved.ILS} />
-                <Wallet flag="🇺🇸" label="דולרים" amount={v.cash.USD} ccy="USD" reserved={v.reserved.USD} />
-                <button className="text-sm text-brand underline" onClick={() => setTab("cash")}>להמרה בין הקופות</button>
-              </div>
-              <div className="card text-sm space-y-1">
-                <h3 className="font-semibold">פרטי התיק</h3>
-                <div>נפתח ב-<span className="num">{dateHe(p.startDate)}</span> עם <span className="num">{money(p.initialCapital, "ILS", 0)}</span></div>
-                <div>עמלות: {p.fees.kind === "bank" ? "🏦 בנק" : p.fees.kind === "online" ? "💻 ברוקר אונליין" : "✏️ מותאם"}</div>
-                {p.deposit && <div>הפקדה: <span className="num">{money(p.deposit.amount, "ILS", 0)}</span> ב-{p.deposit.day} לחודש{p.deposit.autoBuy && <> · קנייה אוטומטית של <b className="num">{p.deposit.autoBuy}</b></>}</div>}
-                <button className="text-xs text-down underline pt-2" onClick={remove}>מחיקת התיק</button>
-              </div>
-            </div>
+        {active === "more" && (
+          <div className="flex gap-1.5 flex-wrap">
+            {more.map((m) => (
+              <button key={m.k} className={`chip ${tab === m.k ? "chip-on" : ""}`} onClick={() => setTab(m.k)}>
+                {m.label}
+              </button>
+            ))}
           </div>
         )}
+
+        {tab === "overview" && <OverviewPanel id={id} view={v} version={version} onTrade={trade} onTab={setTab} />}
 
         {/* טופס הפקודה נשאר טעון (מוסתר) כדי שלא יתאפס כשקופצים להמרה וחוזרים */}
         <div hidden={tab !== "order"}>
@@ -231,29 +204,29 @@ export default function PortfolioScreen() {
         {tab === "tax" && <TaxPanel view={v} />}
         {tab === "chart" && <JourneyChart id={id} version={version} />}
         {tab === "report" && <ReportPanel id={id} version={version} />}
+        {tab === "details" && (
+          <div className="card text-sm space-y-1.5 max-w-xl">
+            <h3 className="font-semibold">פרטי התיק</h3>
+            <div>נפתח ב-<span className="num">{dateHe(p.startDate)}</span> עם <span className="num">{money(p.initialCapital, "ILS", 0)}</span></div>
+            {isTime && <div>סוף המסע: <span className="num">{p.endDate ? dateHe(p.endDate) : "עד היום"}</span></div>}
+            <div>עמלות: {p.fees.kind === "bank" ? "🏦 בנק" : p.fees.kind === "online" ? "💻 ברוקר אונליין" : "✏️ מותאם"} (קנייה/מכירה בארה&quot;ב {p.fees.usPct}%, מינימום ${p.fees.usMin} · המרה {p.fees.fxPct}% · משמרת {p.fees.custodyPctYear}% לשנה)</div>
+            {p.deposit && <div>הפקדה: <span className="num">{money(p.deposit.amount, "ILS", 0)}</span> ב-{p.deposit.day} לחודש{p.deposit.autoBuy && <> · קנייה אוטומטית של <b className="num">{p.deposit.autoBuy}</b></>}</div>}
+            <div>מדד השוואה: {p.benchmark === "TA125" ? "ת\"א-125" : "S&P 500"}</div>
+            <button className="text-xs text-down underline pt-3" onClick={remove}>מחיקת התיק</button>
+          </div>
+        )}
       </main>
+
+      {/* טלפון: סרגל תחתון (D20) */}
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card border-t border-line grid grid-cols-5 text-center pb-[env(safe-area-inset-bottom)]">
+        {MAIN.map((x) => (
+          <button key={x.k} onClick={() => goMain(x.k)} className={`pt-1.5 pb-2 text-[11px] relative ${active === x.k ? "text-brand font-bold" : "text-muted"}`}>
+            <span className="block text-lg leading-tight">{x.icon}</span>
+            {x.label}
+            {x.k === "history" && v.pending.length > 0 && <span className="absolute top-1 left-1/2 ms-2 w-2 h-2 rounded-full bg-warn" />}
+          </button>
+        ))}
+      </nav>
     </>
-  );
-}
-
-function Kpi({ label, value, sub, cls = "" }: { label: string; value: string; sub: string; cls?: string }) {
-  return (
-    <div className="card">
-      <div className="text-xs text-muted">{label}</div>
-      <div className={`text-xl font-bold num mt-1 ${cls}`}>{value}</div>
-      <div className="text-xs text-muted num">{sub}</div>
-    </div>
-  );
-}
-
-function Wallet({ flag, label, amount, ccy, reserved }: { flag: string; label: string; amount: number; ccy: string; reserved: number }) {
-  return (
-    <div className="flex justify-between items-baseline rounded-lg bg-bg px-3 py-2">
-      <span>{flag} {label}</span>
-      <span className="text-end">
-        <b className={`num text-lg ${amount < 0 ? "text-down" : ""}`}>{money(amount, ccy)}</b>
-        {reserved > 0 && <span className="block text-xs text-muted num">מתוכם {money(reserved, ccy)} שמורים לפקודות</span>}
-      </span>
-    </div>
   );
 }

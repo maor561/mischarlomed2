@@ -1,5 +1,6 @@
 "use client";
 
+import Term from "@/components/term";
 import { useState } from "react";
 import { api, money } from "@/lib/format";
 import type { PortfolioView } from "@/lib/engine/service";
@@ -45,7 +46,7 @@ export default function FxForm({ id, view, prefill, onDone }: { id: string; view
           שווי הקופות בשקלים: <b className="num">{money(view.totals.cashIls, "ILS")}</b> (שער <span className="num">{fx.toFixed(4)}</span>)
         </p>
         <div className="text-sm rounded-lg p-2.5 bg-brand-soft text-[#1d3c9e]">
-          💡 אם הדולר יתחזק אחרי שקנית מניה אמריקאית, תרוויח גם אם המניה לא זזה. אם הוא ייחלש, תפסיד. זו &quot;חשיפה למט&quot;ח&quot;.
+          💡 אם הדולר יתחזק אחרי שקנית מניה אמריקאית, תרוויח גם אם המניה לא זזה. אם הוא ייחלש, תפסיד. זו <Term id="fx-exposure">חשיפה לדולר</Term>.
         </div>
       </div>
       <div className="card space-y-3">
@@ -60,7 +61,7 @@ export default function FxForm({ id, view, prefill, onDone }: { id: string; view
         </label>
         <div className="text-sm space-y-1">
           <div className="flex justify-between"><span>שער באותו יום</span><span className="num">{fx.toFixed(4)}</span></div>
-          <div className="flex justify-between"><span>עמלת המרה ({view.portfolio.fees.fxPct}%)</span><span className="num">−{money(fee, from)}</span></div>
+          <div className="flex justify-between"><span><Term id="fx-fee">עמלת המרה</Term> ({view.portfolio.fees.fxPct}%)</span><span className="num">−{money(fee, from)}</span></div>
           <div className="flex justify-between"><span>שער בפועל</span><span className="num">{received > 0 ? (from === "ILS" ? amount / received : received / amount).toFixed(4) : "—"}</span></div>
           <div className="flex justify-between font-bold border-t border-line pt-2"><span>תקבל</span><span className="num">{money(received, to)}</span></div>
         </div>

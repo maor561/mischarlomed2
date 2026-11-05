@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מסכים — סקיצה 04</title>
+<style>
+  :root{
+    --bg:#f4f6fa; --card:#fff; --ink:#1b2333; --muted:#6b7488; --line:#e3e7ef;
+    --brand:#2753d6; --brand-soft:#e9eefc; --up:#0f8a4f; --up-soft:#e5f5ec;
+    --down:#c8372d; --down-soft:#fbeceb; --warn:#b26a00; --warn-soft:#fff4e0;
+    --time:#6b3fd1; --time-soft:#f0eafc;
+    --c1:#2753d6; --c2:#0f8a4f; --c3:#b26a00; --c4:#6b3fd1; --c5:#c8372d; --c6:#9aa3b5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
+  .sketch-banner{background:#222;color:#fff;text-align:center;padding:6px;font-size:12px}
+  header.top{background:var(--card);border-bottom:1px solid var(--line);padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .logo{font-weight:700;font-size:18px}.logo span{color:var(--brand)}
+  nav.tabs{display:flex;gap:4px;flex-wrap:wrap}
+  nav.tabs button{border:0;background:none;padding:8px 12px;border-radius:8px;cursor:pointer;font:inherit;color:var(--muted)}
+  nav.tabs button.on{background:var(--brand-soft);color:var(--brand);font-weight:600}
+  main{padding:18px 20px;max-width:1240px;margin:auto}
+  .page{display:none}.page.on{display:block}
+  h2{font-size:18px;margin:0 0 4px}
+  .lead{color:var(--muted);margin:0 0 14px}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g-main{grid-template-columns:2fr 1fr}
+  @media(max-width:900px){.g2,.g3,.g-main{grid-template-columns:1fr}.g4{grid-template-columns:1fr 1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
+  .num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+  .up{color:var(--up)}.down{color:var(--down)}.muted{color:var(--muted)}
+  .sub{font-size:12px;color:var(--muted)}
+  .kpi .v{font-size:24px;font-weight:700}
+  .t{border-bottom:1.5px dashed var(--brand);cursor:help}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;vertical-align:middle}
+  th{font-size:12px;color:var(--muted);font-weight:600}
+  .wbar{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;width:80px;display:inline-block;vertical-align:middle}
+  .wbar i{display:block;height:100%}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--brand-soft);color:var(--brand)}
+  .tag.il{background:#e8f3ff;color:#1460a8}.tag.etf{background:var(--up-soft);color:var(--up)}
+  .alert{padding:10px 12px;border-radius:8px;font-size:13px}
+  .alert.warn{background:var(--warn-soft);color:#6b4100}
+  .alert.info{background:var(--brand-soft);color:#1d3c9e}
+  .alert.time{background:var(--time-soft);color:var(--time)}
+  .btn{display:inline-block;padding:9px 14px;border:0;border-radius:8px;background:var(--brand);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+  .btn.buy{background:var(--up)}.btn.sell{background:var(--down)}
+  .btn.ghost{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font:inherit;font-size:12px;cursor:pointer}
+  .chip.on{border-color:var(--brand);background:var(--brand-soft);color:var(--brand);font-weight:600}
+  .decide{border:2px dashed var(--warn);background:var(--warn-soft);border-radius:10px;padding:10px 14px;margin-top:12px;font-size:13px}
+  .decide b{color:var(--warn)}
+  .note{font-size:12px;color:var(--muted);margin-top:22px;border-top:1px dashed var(--line);padding-top:10px}
+  .placeholder{border:1.5px dashed var(--line);background:#fafbfd}
+  .placeholder h3{color:var(--muted)}
+  /* donut */
+  .donut-wrap{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .legend div{display:flex;align-items:center;gap:6px;font-size:13px;padding:2px 0}
+  .legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .stack{height:14px;border-radius:7px;overflow:hidden;display:flex;margin:8px 0}
+  .stack i{display:block;height:100%}
+  .sector{display:grid;grid-template-columns:110px 1fr 44px;gap:8px;align-items:center;font-size:13px;padding:3px 0}
+  .sector .bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+  .sector .bar i{display:block;height:100%;background:var(--c1)}
+  .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .facts div{background:var(--bg);border-radius:8px;padding:8px 10px}
+  .facts b{display:block;font-size:15px}
+  .strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+  .strip .it{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 12px;white-space:nowrap;font-size:13px}
+  /* מילון */
+  .gl-item{border-bottom:1px solid var(--line);padding:12px 0}
+  .gl-item h4{margin:0 0 4px;font-size:15px}
+  .gl-item .ex{background:var(--bg);border-radius:6px;padding:6px 10px;font-size:13px;margin-top:6px}
+  .gl-item .where{font-size:12px;color:var(--muted);margin-top:4px}
+  .cats{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+  /* פופאובר */
+  .pop{position:relative;display:inline-block}
+  .pop .box{position:absolute;top:26px;right:-10px;width:300px;background:#1b2333;color:#fff;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.55;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:2}
+  .pop .box b{color:#9fb6ff}
+  .pop .box a{color:#9fb6ff}
+  /* טלפון */
+  .phone{width:340px;height:680px;border:10px solid #1b2333;border-radius:36px;background:var(--bg);overflow:hidden;position:relative;margin:auto}
+  .phone .ptop{background:var(--time-soft);padding:10px 12px;font-size:12px;border-bottom:1px solid #ddd2f7}
+  .phone .pbody{padding:10px;height:calc(100% - 64px - 58px);overflow:hidden}
+  .phone .pnav{position:absolute;bottom:0;inset-inline:0;height:58px;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);text-align:center;font-size:11px}
+  .phone .pnav div{padding-top:7px;color:var(--muted)}
+  .phone .pnav div.on{color:var(--brand);font-weight:700}
+  .phone .pnav span{display:block;font-size:18px}
+</style>
+</head>
+<body>
+<div class="sketch-banner">סקיצה 04 · המסכים. המספרים להמחשה. משבצות צהובות מקווקוות = החלטה שמחכה לך.</div>
+<header class="top">
+  <div class="logo">📈 מסחר<span>־לומד</span></div>
+  <nav class="tabs">
+    <button class="on" data-p="home">① התיק שלי</button>
+    <button data-p="stock">② דף נייר</button>
+    <button data-p="tip">③ הסבר צמוד</button>
+    <button data-p="glossary">④ מילון</button>
+    <button data-p="mobile">⑤ בטלפון</button>
+  </nav>
+</header>
+
+<main>
+<!-- ① התיק שלי -->
+<section class="page on" id="home">
+  <h2>התיק שלי (הסקירה החדשה)</h2>
+  <p class="lead">מחליף את לשונית "סקירה". כל מה שחשוב במבט אחד, וכל מונח מסומן בקו מקווקו עם הסבר.</p>
+
+  <div class="grid g4">
+    <div class="card kpi"><div class="sub">שווי התיק</div><div class="v num">₪54,255</div><div class="sub">הופקדו ₪50,000</div></div>
+    <div class="card kpi"><div class="sub"><span class="t">רווח/הפסד</span> נטו</div><div class="v num up">+₪4,255</div><div class="sub num">+8.5% · היום −0.4%</div></div>
+    <div class="card kpi"><div class="sub">לעומת <span class="t">מדד ייחוס</span></div><div class="v num down">−4.6%</div><div class="sub">S&amp;P 500 עשה +13.1%</div></div>
+    <div class="card kpi"><div class="sub"><span class="t">ירידה מהשיא</span></div><div class="v num">−2.1%</div><div class="sub">השיא: ₪55,420</div></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>📰 מה השתנה מאז הפעם הקודמת</h3>
+    <div class="strip">
+      <div class="it">💼 קנייה 35 VOO בוצעה ב-$301.50</div>
+      <div class="it">💵 דיבידנד VOO: <b class="num up">+$31.10</b> נטו</div>
+      <div class="it">📉 S&amp;P 500 <b class="num down">−3.4%</b> ביום</div>
+      <div class="it">⏳ לימיט AAPL $250 עדיין ממתין</div>
+    </div>
+  </div>
+
+  <div class="grid g-main" style="margin-top:14px">
+    <div class="grid" style="align-content:start">
+      <div class="card">
+        <h3>ההחזקות שלי</h3>
+        <table>
+          <tr><th>נייר</th><th>כמות</th><th>שווי (₪)</th><th>% מהתיק</th><th>היום</th><th>מאז הקנייה</th><th></th></tr>
+          <tr><td><b class="num">VOO</b> <span class="tag etf">קרן סל</span><div class="sub">S&amp;P 500 · מפוזר</div></td><td class="num">35</td><td class="num">₪39,420</td><td><span class="wbar"><i style="width:72%;background:var(--c1)"></i></span> <span class="num">72%</span></td><td class="num down">−0.5%</td><td class="num up">+11.2%</td><td><button class="chip">קנה</button> <button class="chip">מכור</button></td></tr>
+          <tr><td><b class="num">AAPL</b> <span class="tag">מניה</span><div class="sub">Apple · טכנולוגיה</div></td><td class="num">10</td><td class="num">₪4,610</td><td><span class="wbar"><i style="width:9%;background:var(--c2)"></i></span> <span class="num">9%</span></td><td class="num up">+1.1%</td><td class="num up">+54.0%</td><td><button class="chip">קנה</button> <button class="chip">מכור</button></td></tr>
+          <tr><td><b class="num">TEVA.TA</b> <span class="tag il">ת"א</span><div class="sub">טבע · בריאות</div></td><td class="num">50</td><td class="num">₪1,710</td><td><span class="wbar"><i style="width:3%;background:var(--c3)"></i></span> <span class="num">3%</span></td><td class="num">0.0%</td><td class="num down">−8.0%</td><td><button class="chip">קנה</button> <button class="chip">מכור</button></td></tr>
+          <tr><td><b>💵 מזומן</b><div class="sub num">₪7,610 + $260</div></td><td></td><td class="num">₪8,515</td><td><span class="wbar"><i style="width:16%;background:var(--c6)"></i></span> <span class="num">16%</span></td><td></td><td></td><td></td></tr>
+        </table>
+        <div class="sub" style="margin-top:6px">לחיצה על שם נייר פותחת את דף הנייר. "קנה"/"מכור" פותחים את טופס הפקודה עם הנייר כבר בפנים.</div>
+      </div>
+      <div class="card">
+        <h3>📈 התיק מול המדד <span class="sub" style="font-weight:400">· מקוצר, הגרף המלא בלשונית "מול המדד"</span></h3>
+        <svg viewBox="0 0 600 140" style="width:100%;height:140px" preserveAspectRatio="none">
+          <rect x="60" y="0" width="70" height="140" fill="#fbeceb"/>
+          <polyline fill="none" stroke="#b9bfcc" stroke-dasharray="6 4" stroke-width="2" points="0,70 600,70"/>
+          <polyline fill="none" stroke="#9aa3b5" stroke-width="2" points="0,70 60,60 130,125 200,90 300,70 400,55 500,40 600,30"/>
+          <polyline fill="none" stroke="#2753d6" stroke-width="3" points="0,70 60,63 130,110 200,85 300,72 400,62 500,52 600,48"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="grid" style="align-content:start">
+      <div class="card">
+        <h3>🥧 פיזור לפי נייר</h3>
+        <div class="donut-wrap">
+          <svg viewBox="0 0 42 42" width="120" height="120">
+            <circle cx="21" cy="21" r="15.9" fill="none" stroke="#2753d6" stroke-width="7" stroke-dasharray="72 28" stroke-dashoffset="25"/>
+            <circle cx="21" cy="21" r="15.9" fill="none" stroke="#0f8a4f" stroke-width="7" stroke-dasharray="9 91" stroke-dashoffset="-47"/>
+            <circle cx="21" cy="21" r="15.9" fill="none" stroke="#b26a00" stroke-width="7" stroke-dasharray="3 97" stroke-dashoffset="-56"/>
+            <circle cx="21" cy="21" r="15.9" fill="none" stroke="#9aa3b5" stroke-width="7" stroke-dasharray="16 84" stroke-dashoffset="-59"/>
+          </svg>
+          <div class="legend">
+            <div><i style="background:#2753d6"></i>VOO 72%</div>
+            <div><i style="background:#0f8a4f"></i>AAPL 9%</div>
+            <div><i style="background:#b26a00"></i>TEVA.TA 3%</div>
+            <div><i style="background:#9aa3b5"></i>מזומן 16%</div>
+          </div>
+        </div>
+        <div class="alert info" style="margin-top:8px">✅ אין מניה בודדת מעל 25%. VOO היא קרן סל של 500 חברות, ולכן היא לא נחשבת ריכוז.</div>
+      </div>
+      <div class="card">
+        <h3>💱 לפי מטבע</h3>
+        <div class="stack"><i style="width:83%;background:#2753d6"></i><i style="width:17%;background:#0f8a4f"></i></div>
+        <div class="sub"><b style="color:#2753d6">83% בדולר</b> · <b style="color:#0f8a4f">17% בשקל</b></div>
+        <div class="alert warn" style="margin-top:8px">רוב התיק ב<span class="t">חשיפה לדולר</span>. אם הדולר ייחלש ב-10%, התיק יירד בכ-8% גם אם המניות לא יזוזו.</div>
+      </div>
+      <div class="card">
+        <h3>🏭 לפי סקטור</h3>
+        <div class="sector"><span>מפוזר (קרן סל)</span><span class="bar"><i style="width:86%;background:#9aa3b5"></i></span><span class="num">86%</span></div>
+        <div class="sector"><span>טכנולוגיה</span><span class="bar"><i style="width:10%"></i></span><span class="num">10%</span></div>
+        <div class="sector"><span>בריאות</span><span class="bar"><i style="width:4%"></i></span><span class="num">4%</span></div>
+        <div class="sub" style="margin-top:4px">מחושב רק מתוך ההחזקות, בלי מזומן.</div>
+      </div>
+      <div class="card placeholder"><h3>🤖 המנטור</h3><div class="sub">כאן ייכנס המנטור בחבילה 5.</div></div>
+      <div class="card placeholder"><h3>📚 השיעור הבא</h3><div class="sub">כאן ייכנס מסלול השיעורים בחבילה 6.</div></div>
+    </div>
+  </div>
+  <div class="decide"><b>החלטה · לשוניות:</b> ההצעה היא שבעמוד התיק יהיו 5 לשוניות: <b>התיק שלי · מסחר · מול המדד · היסטוריה · עוד</b>. תחת "עוד" יהיו מזומן ומט"ח, מס ועלויות ודו"ח המסע. היום יש 7 לשוניות, וזה צפוף בטלפון.</div>
+</section>
+
+<!-- ② דף נייר -->
+<section class="page" id="stock">
+  <h2>דף נייר</h2>
+  <p class="lead">נפתח מלחיצה על נייר בתיק, בחיפוש או בטופס הפקודה. מרכז את כל מה שצריך לדעת לפני שמחליטים.</p>
+  <div class="grid g-main">
+    <div class="card">
+      <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+        <h3 style="margin:0;font-size:20px">Apple Inc. <span class="num muted" style="font-size:14px">AAPL</span></h3>
+        <span class="tag">מניה · NASDAQ · דולר</span><span class="tag" style="background:var(--bg);color:var(--muted)">טכנולוגיה</span>
+        <span style="flex:1"></span>
+        <span class="num" style="font-size:26px;font-weight:700">$266.17</span><span class="num up">+1.1% היום</span>
+      </div>
+      <svg viewBox="0 0 600 200" style="width:100%;height:200px;margin-top:10px" preserveAspectRatio="none">
+        <polyline fill="none" stroke="#0f8a4f" stroke-width="2.5" points="0,150 60,140 120,120 180,125 240,100 300,90 360,60 420,70 480,40 540,50 600,30"/>
+      </svg>
+      <div style="display:flex;gap:6px"><button class="chip">חודש</button><button class="chip on">שנה</button><button class="chip">5 שנים</button><button class="chip">הכול</button></div>
+      <h3 style="margin-top:16px">נתוני חברה <span class="sub" style="font-weight:400">· בתיק חי בלבד</span></h3>
+      <div class="facts">
+        <div><span class="sub"><span class="t">שווי שוק</span></span><b class="num">$4.99 טריליון</b></div>
+        <div><span class="sub"><span class="t">מכפיל רווח (P/E)</span></span><b class="num">38.3</b></div>
+        <div><span class="sub"><span class="t">תשואת דיבידנד</span></span><b class="num">0.3%</b></div>
+        <div><span class="sub"><span class="t">בטא</span></span><b class="num">1.09</b></div>
+        <div><span class="sub">שיא / שפל 52 שבועות</span><b class="num">$243 – $354</b></div>
+        <div><span class="sub">ענף</span><b>Consumer Electronics</b></div>
+      </div>
+      <div class="alert time" style="margin-top:10px">⏳ במכונת זמן: במקום נתוני החברה כתוב <i>"נתוני חברה זמינים רק בתיק חי. אין לנו את הערכים כפי שהיו ב-9.3.2020, ומספרים של היום היו מטעים."</i></div>
+    </div>
+    <div class="grid" style="align-content:start">
+      <div class="card">
+        <h3>ההחזקה שלך</h3>
+        <table>
+          <tr><td>כמות</td><td class="num">10</td></tr>
+          <tr><td>קנייה ממוצעת</td><td class="num">$250.25</td></tr>
+          <tr><td>שווי</td><td class="num">₪9,569</td></tr>
+          <tr><td>רווח/הפסד</td><td class="num up">+₪686 (+7.7%)</td></tr>
+          <tr><td>% מהתיק</td><td class="num">18%</td></tr>
+        </table>
+        <div style="display:flex;gap:8px;margin-top:10px"><button class="btn buy" style="flex:1">קנייה</button><button class="btn sell" style="flex:1">מכירה</button></div>
+      </div>
+      <div class="card">
+        <h3>היסטוריה שלך עם הנייר</h3>
+        <div class="sub">12.3.2020 · קנייה 10 × $250.00 (לימיט)</div>
+        <div class="sub" style="margin-top:4px">"לקנות אם תהיה ירידה חדה"</div>
+      </div>
+      <div class="card">
+        <h3>דיבידנדים</h3>
+        <div class="sub">4 תשלומים בשנה. האחרון: $0.82 למניה, ב-8.5.2020</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ③ הסבר צמוד -->
+<section class="page" id="tip">
+  <h2>הסבר צמוד</h2>
+  <p class="lead">כל מונח עם קו מקווקו. מעבר עם העכבר (בטלפון: נגיעה) פותח הסבר קצר, עם דוגמה וקישור למילון.</p>
+  <div class="card" style="min-height:260px">
+    <div class="facts" style="max-width:520px">
+      <div>
+        <span class="sub pop"><span class="t">מכפיל רווח (P/E)</span>
+          <span class="box">
+            <b>מכפיל רווח (P/E)</b><br>
+            כמה שנים של רווח החברה אתה משלם במחיר המניה.<br><br>
+            <b>דוגמה:</b> מכפיל 38 אומר שמשלמים פי 38 מהרווח השנתי. אם הרווח לא יגדל, יידרשו 38 שנים "להחזיר" את המחיר.<br><br>
+            גבוה = השוק מצפה לצמיחה (או שהמניה יקרה). נמוך = זולה, או שיש סיבה לדאגה.<br><br>
+            <a href="#">עוד במילון ←</a>
+          </span>
+        </span>
+        <b class="num">38.3</b>
+      </div>
+      <div><span class="sub"><span class="t">שווי שוק</span></span><b class="num">$4.99T</b></div>
+    </div>
+  </div>
+  <div class="grid g3" style="margin-top:14px">
+    <div class="card"><h3>📏 כללים</h3><div class="sub">2–4 משפטים. דוגמה עם מספרים מהמסך. בלי מונח שצריך הסבר משלו (או שגם הוא מקווקו).</div></div>
+    <div class="card"><h3>📍 איפה</h3><div class="sub">בכל המסכים: התיק, פקודה, דף נייר, מס, דו"ח. רשימה אחת מרכזית, כדי שההסבר יהיה זהה בכל מקום.</div></div>
+    <div class="card"><h3>📱 בטלפון</h3><div class="sub">נגיעה פותחת חלון תחתון במקום בועה.</div></div>
+  </div>
+</section>
+
+<!-- ④ מילון -->
+<section class="page" id="glossary">
+  <h2>מילון</h2>
+  <p class="lead">כל המונחים במקום אחד, עם חיפוש. נגיש מהתפריט העליון ומכל הסבר צמוד.</p>
+  <div class="card">
+    <input style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font:inherit" placeholder="🔍 חפש מונח: דיבידנד, סטופ, מגן מס…">
+    <div class="cats"><button class="chip on">הכול (34)</button><button class="chip">יסודות</button><button class="chip">פקודות</button><button class="chip">סיכון</button><button class="chip">ניתוח חברה</button><button class="chip">מס ועלויות</button><button class="chip">מטבע</button></div>
+    <div class="gl-item"><h4>דיבידנד <span class="tag" style="background:var(--bg);color:var(--muted)">יסודות</span></h4>
+      חלק מהרווח שהחברה מחלקת לבעלי המניות במזומן, בדרך כלל כל רבעון. בישראל מנכים ממנו 25% מס.
+      <div class="ex">דוגמה: יש לך 35 מניות VOO והקרן חילקה $1.18 למניה. קיבלת $41.30, ואחרי מס $30.98.</div>
+      <div class="where">מופיע ב: יומן תנועות · דף נייר · מס ועלויות</div>
+    </div>
+    <div class="gl-item"><h4>סטופ-לוס <span class="tag" style="background:var(--bg);color:var(--muted)">פקודות</span></h4>
+      פקודה שמוכרת אוטומטית אם המחיר יורד לרמה שקבעת. מגבילה הפסד, אבל לא מבטיחה את המחיר: בפער פתיחה מוכרים נמוך יותר.
+      <div class="ex">דוגמה: סטופ ב-$240, והמניה נפתחה ב-$220 אחרי דוח רע. מכרת ב-$220.</div>
+      <div class="where">מופיע ב: טופס פקודה · חוקי המנוע</div>
+    </div>
+    <div class="gl-item"><h4>מגן מס <span class="tag" style="background:var(--bg);color:var(--muted)">מס ועלויות</span></h4>
+      הפסד שלא קוזז השנה עובר לשנים הבאות, ומקטין את המס על רווחים עתידיים.
+      <div class="ex">דוגמה: הפסדת ₪510 ב-2024 והרווחת ₪290 ב-2025. ב-2025 לא תשלם מס, ו-₪220 עוברים הלאה.</div>
+      <div class="where">מופיע ב: מס ועלויות</div>
+    </div>
+  </div>
+  <div class="decide"><b>החלטה · רשימת המונחים:</b> ההצעה היא כ-34 מונחים בגרסה הראשונה, כל מה שמופיע היום במסכים. בין השאר: מניה, קרן סל, מדד, מדד ייחוס, שווי שוק, מכפיל רווח, דיבידנד, תשואת דיבידנד, בטא, תנודתיות, פיזור, ריכוז, ירידה מהשיא, שוק דובי, פקודת שוק, לימיט, סטופ, תוקף, פער פתיחה, מפסק זרם, עמלה, דמי משמרת, מס רווחי הון, מגן מס, FIFO, חשיפה למט"ח, שער יציג, פיצול, יום אקס, ריבית דריבית, תשואה משוקללת זמן, Survivorship bias, מזומן, נזילות. בחבילה 6 השיעורים יפנו אליהם.</div>
+</section>
+
+<!-- ⑤ טלפון -->
+<section class="page" id="mobile">
+  <h2>בטלפון</h2>
+  <p class="lead">סרגל תחתון כמו באפליקציה, ופס הזמן מצומצם לשורה אחת.</p>
+  <div class="grid g2" style="align-items:start">
+    <div class="phone">
+      <div class="ptop"><b>מכונת זמן — קורונה</b><div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span style="font-size:16px;font-weight:700;color:var(--time)" class="num">9.3.2020</span><span>⏸ ▶ · שבוע/ש'</span></div></div>
+      <div class="pbody">
+        <div class="card" style="padding:10px"><div class="sub">שווי התיק</div><div class="num" style="font-size:22px;font-weight:700">₪47,236</div><div class="num down" style="font-size:13px">−₪2,764 (−5.5%)</div></div>
+        <div class="card" style="padding:10px;margin-top:8px"><div class="sub">לעומת S&amp;P 500</div><b class="num up">+6.4%</b></div>
+        <div class="card" style="padding:10px;margin-top:8px">
+          <div style="display:flex;justify-content:space-between"><b class="num">VOO</b><span class="num">₪27,386 · 58%</span></div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px"><b class="num">AAPL</b><span class="num">₪9,569 · 20%</span></div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px"><b>מזומן</b><span class="num">₪10,281 · 22%</span></div>
+        </div>
+      </div>
+      <div class="pnav">
+        <div class="on"><span>💼</span>התיק</div>
+        <div><span>📝</span>מסחר</div>
+        <div><span>📈</span>מול המדד</div>
+        <div><span>📜</span>היסטוריה</div>
+        <div><span>☰</span>עוד</div>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card"><h3>מה משתנה בטלפון</h3>
+        <ul style="margin:0;padding-inline-start:18px;line-height:1.9">
+          <li>חמש הלשוניות עוברות לסרגל קבוע בתחתית</li>
+          <li>פס הזמן בשורה אחת: תאריך, ▶/⏸ ומהירות. העצירות וצעדי הזמן בכפתור ⚙️</li>
+          <li>טבלאות הופכות לכרטיסים (נייר, שווי, %)</li>
+          <li>חלון עצירה והסבר צמוד נפתחים מלמטה (bottom sheet)</li>
+          <li>בחבילה 7: התקנה למסך הבית כאפליקציה</li>
+        </ul>
+      </div>
+      <div class="alert info">התפריט העליון (התיקים שלי · מילון · חוקים) עובר בטלפון לכפתור ☰ ב"עוד".</div>
+    </div>
+  </div>
+</section>
+
+<div class="note">סקיצה 04 · המסכים. ההחלטות שנסגרו: הסבר מקווקו + מילון, פיזור לפי נייר, מטבע וסקטור, נתוני חברה רק בתיק חי, סרגל תחתון בטלפון. נתוני חברה מגיעים מ-Yahoo דרך "crumb". נבדק שזה עובד מהמחשב, ועוד לא נבדק משרתי Vercel. אם לא יעבוד, הנתונים פשוט לא יוצגו. הסקטור מגיע מהחיפוש ועובד בלי crumb.</div>
+</main>
+<script>
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id===b.dataset.p));
+    scrollTo(0,0);
+  });
+  document.querySelectorAll('.cats').forEach(c=>{const ch=[...c.children];ch.forEach(o=>o.onclick=()=>ch.forEach(x=>x.classList.toggle('on',x===o)));});
+</script>
+</body>
+</html>

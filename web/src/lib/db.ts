@@ -125,6 +125,15 @@ ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS nav_peak DOUBLE PRECISION NOT NU
 ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS last_value DOUBLE PRECISION;
 ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS dd_alerted BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS last_market_stop DATE;
+
+-- ===== חבילה 4: מידע על נייר (סקטור ונתוני חברה), מטמון ל-12 שעות =====
+CREATE TABLE IF NOT EXISTS instrument_info (
+  symbol     TEXT PRIMARY KEY,
+  kind       TEXT NOT NULL,
+  sector     TEXT,
+  data       JSONB,
+  fetched_at TIMESTAMPTZ NOT NULL
+);
 `;
 
 let queryFn: Promise<QueryFn> | null = null;

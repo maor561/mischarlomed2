@@ -9,6 +9,7 @@ import { estimate, fill, makeCtx, processDay, processLive, processRange, trigger
 import { carryLossInto, replay, type State } from "./state";
 import { BENCH, FEE_PRESETS, type Bar, type Benchmark, type Ccy, type FeeProfile, type LedgerEntry, type Market, type MonthlyDeposit, type Order, type Portfolio } from "./types";
 import { CALM, EVENTS, STORMY } from "../timemachine/events";
+import { getInfo, sectorHe } from "../market/info";
 
 export class UserError extends Error {}
 
@@ -554,18 +555,37 @@ export async function view(id: number) {
     const fx = m.fx(d);
 
     const priceOf = (sym: string) => (p.mode === "live" ? m.live?.(sym)?.price : undefined) ?? m.closeOn(sym, d) ?? 0;
-    const positions = [...s.positions.values()].map((pos) => {
+    /** שינוי יומי באחוזים: בחי מול הסגירה של אתמול; במכונת זמן רק אם היום הוא יום מסחר של הנייר */
+    const dayPctOf = (sym: string, price: number): number | null => {
+      if (p.mode === "live") {
+        const q = lives.get(sym);
+        return q?.prevClose ? round2((price / q.prevClose - 1) * 100) : null;
+      }
+      const bars = m.series.get(sym)?.bars ?? [];
+      const i = bars.findIndex((b) => b.d === d);
+      return i > 0 ? round2((bars[i].close / bars[i - 1].close - 1) * 100) : null;
+    };
+    const lives = new Map<string, LiveQuote>();
+    if (p.mode === "live") await Promise.all([...s.positions.keys()].map(async (sym) => lives.set(sym, await getQuote(sym))));
+    const positions = await Promise.all([...s.positions.values()].map(async (pos) => {
       const price = priceOf(pos.symbol);
       const value = round2(pos.qty * price);
       const costCcy = pos.lots.reduce((a, l) => a + l.costCcy, 0);
       const costIls = pos.lots.reduce((a, l) => a + l.costIls, 0);
       const valueIls = round2(toIls(value, pos.currency, fx));
+      const meta = await getInstrument(pos.symbol);
+      const kind = meta?.kind ?? "EQUITY";
+      const info = await getInfo(pos.symbol, kind, false).catch(() => null);
       return {
-        symbol: pos.symbol, currency: pos.currency, qty: pos.qty, price, value, valueIls,
+        symbol: pos.symbol, name: meta?.name ?? pos.symbol, kind, sector: kind === "EQUITY" ? sectorHe(info?.sector ?? null) : null,
+        currency: pos.currency, qty: pos.qty, price, value, valueIls,
         avgCost: round2(costCcy / pos.qty), costIls: round2(costIls),
         pnlCcy: round2(value - costCcy), pnlIls: round2(valueIls - costIls),
+        pnlPct: costIls ? round2(((valueIls - costIls) / costIls) * 100) : 0,
+        dayPct: dayPctOf(pos.symbol, price),
       };
-    });
+    }));
+    positions.sort((a, b) => b.valueIls - a.valueIls);
     const pendingAll = (await loadOrders(id, true)).map((o) => ({ ...o }));
     const reserved = { ILS: 0, USD: 0 } as Record<Ccy, number>;
     for (const o of pendingAll) if (o.side === "buy") reserved[o.currency] = round2(reserved[o.currency] + o.reserved);

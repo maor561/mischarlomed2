@@ -1,5 +1,6 @@
 "use client";
 
+import Term from "@/components/term";
 import { useEffect, useMemo, useState } from "react";
 import LineChart from "@/components/line-chart";
 import { api, dateHe, money, pct, tone } from "@/lib/format";
@@ -83,7 +84,7 @@ export default function JourneyChart({ id, version }: { id: string; version: str
             <div className="text-xs text-muted">על מה שהפקדת, אחרי עמלות ומס</div>
           </div>
           <div className="card">
-            <div className="text-xs text-muted">אותו כסף ב-{s.benchLabel}</div>
+            <div className="text-xs text-muted">אותו כסף ב-<Term id="benchmark">{s.benchLabel}</Term></div>
             <div className={`text-2xl font-bold num ${tone(s.ret.bench)}`}>{pct(s.ret.bench)}</div>
             <div className="text-xs text-muted">אותן הפקדות באותם ימים, כולל המרה, עמלת קנייה ודיבידנדים נטו. בלי מס מכירה</div>
           </div>
@@ -92,9 +93,9 @@ export default function JourneyChart({ id, version }: { id: string; version: str
           </div>
           {s.drawdown.pct < -3 && (
             <div className="card text-sm">
-              <div className="text-xs text-muted">הירידה הגדולה מהשיא</div>
+              <div className="text-xs text-muted"><Term id="drawdown">הירידה הגדולה מהשיא</Term></div>
               <b className="num text-down text-lg">{pct(s.drawdown.pct)}</b>
-              <div className="text-xs text-muted num">{dateHe(s.drawdown.peakD)} ← {dateHe(s.drawdown.troughD)}</div>
+              <div className="text-xs text-muted">{dateHe(s.drawdown.peakD)} ← {dateHe(s.drawdown.troughD)}</div>
             </div>
           )}
         </div>

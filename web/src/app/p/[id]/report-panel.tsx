@@ -125,7 +125,7 @@ function Kpi({ label, v, sub, cls = "" }: { label: string; v: string; sub: strin
     <div className="card">
       <div className="text-xs text-muted">{label}</div>
       <div className={`text-2xl font-bold num ${cls}`}>{v}</div>
-      <div className="text-xs text-muted num">{sub}</div>
+      <div className="text-xs text-muted">{sub}</div>
     </div>
   );
 }
