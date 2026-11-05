@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מנוע מסחר — סקיצה 02</title>
+<style>
+  :root{
+    --bg:#f4f6fa; --card:#fff; --ink:#1b2333; --muted:#6b7488; --line:#e3e7ef;
+    --brand:#2753d6; --brand-soft:#e9eefc; --up:#0f8a4f; --up-soft:#e5f5ec;
+    --down:#c8372d; --down-soft:#fbeceb; --warn:#b26a00; --warn-soft:#fff4e0;
+    --time:#6b3fd1; --time-soft:#f0eafc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
+  .sketch-banner{background:#222;color:#fff;text-align:center;padding:6px;font-size:12px}
+  header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .logo{font-weight:700;font-size:18px}.logo span{color:var(--brand)}
+  nav{display:flex;gap:4px;flex-wrap:wrap}
+  nav button{border:0;background:none;padding:8px 12px;border-radius:8px;cursor:pointer;font:inherit;color:var(--muted)}
+  nav button.on{background:var(--brand-soft);color:var(--brand);font-weight:600}
+  main{padding:18px 20px;max-width:1200px;margin:auto}
+  .page{display:none}.page.on{display:block}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g-main{grid-template-columns:3fr 2fr}
+  @media(max-width:900px){.g2,.g3,.g-main{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card h3{margin:0 0 10px;font-size:15px}
+  h2{font-size:18px;margin:0 0 4px}
+  .lead{color:var(--muted);margin:0 0 14px}
+  label{display:block;font-size:12px;color:var(--muted);margin:12px 0 4px}
+  input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+  .row{display:flex;gap:10px;align-items:center}
+  .row>*{flex:1}
+  .opt{border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;background:#fff}
+  .opt.on{border-color:var(--brand);background:var(--brand-soft)}
+  .opt b{display:block}
+  .opt small{color:var(--muted)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 10px;font-size:12px;cursor:pointer}
+  .chip.on{border-color:var(--time);background:var(--time-soft);color:var(--time);font-weight:600}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}
+  th{font-size:12px;color:var(--muted);font-weight:600}
+  .num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+  .up{color:var(--up)}.down{color:var(--down)}.muted{color:var(--muted)}
+  .sub{font-size:12px;color:var(--muted)}
+  .btn{display:inline-block;padding:10px 16px;border:0;border-radius:8px;background:var(--brand);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+  .btn.full{display:block;width:100%;margin-top:12px}
+  .btn.ghost{background:#fff;color:var(--brand);border:1px solid var(--brand)}
+  .alert{padding:10px 12px;border-radius:8px;margin-top:10px;font-size:13px}
+  .alert.warn{background:var(--warn-soft);color:#6b4100}
+  .alert.ok{background:var(--up-soft);color:#0b5a34}
+  .alert.info{background:var(--brand-soft);color:#1d3c9e}
+  .alert.time{background:var(--time-soft);color:var(--time)}
+  .pill{display:inline-block;font-size:11px;padding:1px 8px;border-radius:10px;background:var(--bg)}
+  .pill.wait{background:var(--warn-soft);color:var(--warn)}
+  .pill.done{background:var(--up-soft);color:var(--up)}
+  .pill.cancel{background:#eee;color:#777}
+  .pill.div{background:var(--brand-soft);color:var(--brand)}
+  .pill.split{background:var(--time-soft);color:var(--time)}
+  .wallet{display:flex;justify-content:space-between;align-items:baseline;padding:12px;border-radius:10px;background:var(--bg);margin-bottom:8px}
+  .wallet .big{font-size:22px;font-weight:700}
+  .seg{display:flex;gap:6px}
+  .seg button{flex:1;padding:9px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font:inherit}
+  .seg button.buy{background:var(--up);color:#fff;border-color:var(--up)}
+  .cost td{border:0;padding:3px 0}
+  .cost tr.total td{border-top:1px solid var(--line);font-weight:700;padding-top:8px}
+  .rule{border-right:4px solid var(--brand);background:#fff;border-radius:8px;padding:10px 14px;margin-bottom:10px}
+  .rule h4{margin:0 0 4px}
+  .rule .ex{background:var(--bg);border-radius:6px;padding:6px 10px;font-size:13px;margin-top:6px}
+  .bar{height:10px;border-radius:5px;background:var(--bg);overflow:hidden;display:flex}
+  .bar i{display:block;height:100%}
+  .decide{border:2px dashed var(--warn);background:var(--warn-soft);border-radius:10px;padding:10px 14px;margin-top:10px;font-size:13px}
+  .decide b{color:var(--warn)}
+  .note{font-size:12px;color:var(--muted);margin-top:22px;border-top:1px dashed var(--line);padding-top:10px}
+</style>
+</head>
+<body>
+<div class="sketch-banner">סקיצה 02 · מנוע המסחר. המספרים מומצאים להמחשה. משבצות צהובות מקווקוות = החלטה שמחכה לך.</div>
+<header>
+  <div class="logo">📈 מסחר<span>־לומד</span></div>
+  <nav>
+    <button class="on" data-p="new">① תיק חדש</button>
+    <button data-p="cash">② מזומן ומט"ח</button>
+    <button data-p="order">③ פקודה</button>
+    <button data-p="orders">④ פקודות והיסטוריה</button>
+    <button data-p="tax">⑤ מס ועלויות</button>
+    <button data-p="rules">⑥ חוקי המנוע</button>
+  </nav>
+</header>
+
+<main>
+<!-- ① תיק חדש -->
+<section class="page on" id="new">
+  <h2>פתיחת תיק חדש</h2>
+  <p class="lead">אפשר להחזיק כמה תיקים במקביל, למשל תיק "חי" ותיק במכונת זמן, או שני תיקים זהים עם עמלות שונות כדי להשוות.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h3>1. בסיס</h3>
+      <label>שם התיק</label><input value="מכונת זמן — קורונה">
+      <label>הון התחלתי (₪)</label><input class="num" value="50,000">
+      <div class="sub">כדאי לבחור סכום קרוב למה שתשקיע באמת, אחרת התרגול פחות שווה.</div>
+
+      <label>מצב זמן</label>
+      <div class="grid g2">
+        <div class="opt"><b>🔴 חי</b><small>מחירים של היום. הזמן זז כמו במציאות</small></div>
+        <div class="opt on"><b>⏳ מכונת זמן</b><small>מתחילים בתאריך בעבר ומריצים קדימה</small></div>
+      </div>
+      <label>תאריך התחלה</label>
+      <input class="num" value="2020-02-03">
+      <div class="chips" style="margin-top:8px">
+        <span class="chip on">קורונה · פבר' 2020</span>
+        <span class="chip">המשבר הפיננסי · 2008</span>
+        <span class="chip">בועת הדוט-קום · 2000</span>
+        <span class="chip">עליית הריבית · 2022</span>
+        <span class="chip">10 שנים רגילות · 2014</span>
+      </div>
+      <div class="alert time">במכונת זמן אין "הצצה לעתיד": חיפוש, גרפים, חדשות ומחירים מוצגים רק עד התאריך של הסימולציה.</div>
+    </div>
+
+    <div class="card">
+      <h3>2. מבנה עמלות</h3>
+      <div class="grid g3">
+        <div class="opt"><b>🏦 בנק</b><small>יקר, הכי נפוץ</small></div>
+        <div class="opt on"><b>💻 ברוקר אונליין</b><small>זול, בלי דמי משמרת</small></div>
+        <div class="opt"><b>✏️ מותאם</b><small>מקלידים מהצעה שקיבלת</small></div>
+      </div>
+      <table style="margin-top:10px">
+        <tr><th></th><th>🏦 בנק</th><th>💻 אונליין</th></tr>
+        <tr><td>קנייה/מכירה בארה"ב</td><td class="num">0.2% (min $15)</td><td class="num">0.08% (min $2.5)</td></tr>
+        <tr><td>קנייה/מכירה בת"א</td><td class="num">0.2% (min ₪25)</td><td class="num">0.08% (min ₪7)</td></tr>
+        <tr><td>דמי משמרת לשנה</td><td class="num">0.15%</td><td class="num">0</td></tr>
+        <tr><td>עמלת המרת מט"ח</td><td class="num">0.5%</td><td class="num">0.2%</td></tr>
+      </table>
+      <div class="sub">מספרים טיפוסיים להמחשה. כל ערך ניתן לעריכה, ואחרי שתפתח תיק אמיתי כדאי להקליד את המספרים מההצעה שקיבלת.</div>
+
+      <h3 style="margin-top:16px">3. הפקדה חודשית (אופציונלי)</h3>
+      <div class="row">
+        <div><label>סכום (₪)</label><input class="num" value="1,000"></div>
+        <div><label>ביום בחודש</label><input class="num" value="1"></div>
+      </div>
+      <label>מה לעשות עם ההפקדה?</label>
+      <select><option>להשאיר במזומן (אחליט לבד)</option><option selected>לקנות אוטומטית: VOO (כמה שיותר מניות שלמות)</option></select>
+      <div class="sub">כך עובדת "הוראת קבע לקרן סל". זה הבסיס לשיעור על ריבית דריבית.</div>
+      <button class="btn full">פתח תיק</button>
+    </div>
+  </div>
+</section>
+
+<!-- ② מזומן ומט"ח -->
+<section class="page" id="cash">
+  <h2>מזומן ומט"ח</h2>
+  <p class="lead">כמו אצל ברוקר אמיתי יש שתי קופות. מניה אמריקאית קונים בדולרים, ואת הדולרים צריך לקנות קודם.</p>
+  <div class="grid g2">
+    <div class="card">
+      <h3>הקופות שלי</h3>
+      <div class="wallet"><div>🇮🇱 שקלים<div class="sub">לקניית מניות בת"א ולהמרה</div></div><div class="big num">₪21,480</div></div>
+      <div class="wallet"><div>🇺🇸 דולרים<div class="sub">לקניית מניות בארה"ב</div></div><div class="big num">$3,912</div></div>
+      <div class="sub">שווי הקופות בשקלים: <b class="num">₪35,200</b> (לפי שער 3.4838 ב-9.3.2020)</div>
+    </div>
+    <div class="card">
+      <h3>המרה</h3>
+      <div class="seg"><button class="buy">שקל ← דולר</button><button>דולר ← שקל</button></div>
+      <label>סכום להמרה (₪)</label><input class="num" value="10,000">
+      <table class="cost" style="margin-top:10px">
+        <tr><td>שער יציג באותו יום</td><td class="num">3.4838</td></tr>
+        <tr><td>עמלת המרה (0.2%)</td><td class="num">−₪20.00</td></tr>
+        <tr><td>שער בפועל</td><td class="num">3.4908</td></tr>
+        <tr class="total"><td>תקבל</td><td class="num">$2,864.67</td></tr>
+      </table>
+      <div class="alert info">💡 אם הדולר יתחזק אחרי שקנית מניה אמריקאית, תרוויח גם אם המניה לא זזה. אם הוא ייחלש, תפסיד. זו "חשיפה למט"ח".</div>
+      <button class="btn full">המר</button>
+    </div>
+  </div>
+</section>
+
+<!-- ③ פקודה -->
+<section class="page" id="order">
+  <h2>פקודה</h2>
+  <div class="grid g-main">
+    <div class="card">
+      <div class="row" style="align-items:baseline"><div><b style="font-size:18px">AAPL</b> · Apple Inc. <span class="pill">NASDAQ · דולר</span></div><div class="num" style="text-align:left;font-size:22px;font-weight:700">$266.17</div></div>
+      <div class="alert time">🌙 הבורסה בניו יורק סגורה עכשיו (9.3.2020, 11:00 שעון ישראל). <b>פקודת שוק תמתין ותבוצע בפתיחה, בשעה 15:30 שעון ישראל.</b> המחיר בפתיחה יכול להיות שונה מאוד מ-$266.17. זה נקרא "פער פתיחה".</div>
+
+      <div class="seg" style="margin-top:12px"><button class="buy">קנייה</button><button>מכירה</button></div>
+      <label>סוג פקודה</label>
+      <div class="grid g3">
+        <div class="opt on"><b>שוק</b><small>בכל מחיר, בהקדם האפשרי</small></div>
+        <div class="opt"><b>לימיט</b><small>רק במחיר שקבעתי או טוב ממנו</small></div>
+        <div class="opt"><b>סטופ</b><small>כשהמחיר מגיע לרמה, הופך לפקודת שוק</small></div>
+      </div>
+      <div class="row">
+        <div><label>כמות (מניות שלמות)</label><input class="num" value="10"></div>
+        <div><label>תוקף</label><select><option>עד סוף יום המסחר</option><option>עד ביטול (עד 90 יום)</option></select></div>
+      </div>
+      <label>✍️ למה? (חובה. נחזור לזה ביומן)</label>
+      <textarea rows="2">ירדה 20% מהשיא, מאמין בחברה לטווח ארוך</textarea>
+    </div>
+
+    <div class="card">
+      <h3>הערכת עלות</h3>
+      <table class="cost">
+        <tr><td>10 × $266.17 (מחיר אחרון)</td><td class="num">$2,661.70</td></tr>
+        <tr><td>עמלה (0.08%, min $2.5)</td><td class="num">$2.50</td></tr>
+        <tr class="total"><td>ירד מקופת הדולר</td><td class="num">$2,664.20</td></tr>
+      </table>
+      <div class="sub">הערכה בלבד. המחיר הסופי ייקבע בפתיחה. המערכת שומרת מקום בקופה לפי הערכה + 10% מרווח, כדי שהפקודה לא תיכשל אם המחיר יקפוץ.</div>
+      <div class="alert warn">חסרים לך <b class="num">$1,313</b> בקופת הדולר. צריך <span class="num">$2,931</span> (הערכה + 10%), ופנויים רק <span class="num">$1,618</span>: יש <span class="num">$3,912</span>, ומתוכם <span class="num">$2,294</span> שמורים לפקודת קנייה אחרת שממתינה.<br><a href="#" style="color:inherit"><b>המר ₪4,590 לדולרים ←</b></a></div>
+      <button class="btn full">שלח פקודה</button>
+      <div class="sub" style="margin-top:6px">אחרי השליחה רואים אותה ב"פקודות והיסטוריה" ואפשר לבטל עד שהיא מתבצעת.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ④ פקודות והיסטוריה -->
+<section class="page" id="orders">
+  <h2>פקודות והיסטוריה</h2>
+  <div class="card">
+    <h3>⏳ ממתינות (2)</h3>
+    <table>
+      <tr><th>נשלחה</th><th>פקודה</th><th>תנאי</th><th>תוקף</th><th>שמור בקופה</th><th></th></tr>
+      <tr><td class="num">6.3.2020</td><td>קנייה 15 MSFT</td><td>לימיט <span class="num">$139.00</span></td><td>עד ביטול · נותרו 87 יום</td><td class="num">$2,294</td><td><a href="#">ביטול</a></td></tr>
+      <tr><td class="num">2.3.2020</td><td>מכירה 40 VOO</td><td>סטופ <span class="num">$240.00</span></td><td>עד ביטול · נותרו 83 יום</td><td>—</td><td><a href="#">ביטול</a></td></tr>
+    </table>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>📜 היסטוריה</h3>
+    <table>
+      <tr><th>תאריך</th><th>סוג</th><th>פרטים</th><th>מחיר ביצוע</th><th>עמלה</th><th>סה"כ</th><th>מס</th></tr>
+      <tr><td class="num">10.3.2020</td><td><span class="pill div">דיבידנד</span></td><td>VOO · 40 יח' × <span class="num">$1.178</span></td><td></td><td></td><td class="num up">+$47.12</td><td class="num">−$11.78 (25%)</td></tr>
+      <tr><td class="num">5.3.2020</td><td><span class="pill done">מכירה</span></td><td>MSFT · 15 יח' · לימיט <span class="num">$170</span></td><td class="num">$170.40</td><td class="num">$2.50</td><td class="num">+$2,553.50</td><td class="num">−₪212 (על רווח ₪848)</td></tr>
+      <tr><td class="num">20.2.2020</td><td><span class="pill done">קנייה</span></td><td>AAPL · 30 יח' · שוק</td><td class="num">$320.30 <span class="sub">(פתיחה)</span></td><td class="num">$7.69</td><td class="num">−$9,616.69</td><td></td></tr>
+      <tr><td class="num">18.2.2020</td><td><span class="pill cancel">פג תוקף</span></td><td>TEVA.TA · 100 יח' · לימיט ₪30</td><td colspan="4" class="sub">המחיר לא ירד ל-₪30 עד סוף היום</td></tr>
+      <tr><td class="num">3.2.2020</td><td><span class="pill">המרה</span></td><td>₪20,000 → דולר · שער 3.4321</td><td></td><td class="num">₪40</td><td class="num">+$5,815.68</td><td></td></tr>
+      <tr><td class="num">3.2.2020</td><td><span class="pill">הפקדה</span></td><td>הון התחלתי</td><td></td><td></td><td class="num">+₪50,000</td><td></td></tr>
+    </table>
+    <div class="sub" style="margin-top:8px">אירועים אוטומטיים יופיעו כאן גם הם: <span class="pill split">פיצול</span> למשל "AAPL פוצלה 4:1, ה-30 מניות שלך הן עכשיו 120". <span class="pill">דמי משמרת</span> נגבים בסוף כל רבעון.</div>
+  </div>
+</section>
+
+<!-- ⑤ מס ועלויות -->
+<section class="page" id="tax">
+  <h2>מס ועלויות · 2020</h2>
+  <p class="lead">מס רווחי הון בישראל: 25% מהרווח. הפסד שנה מקזז רווח באותה שנה, ומה שנשאר עובר לשנים הבאות ("מגן מס").</p>
+  <div class="grid g3">
+    <div class="card"><div class="sub">רווחים שמומשו</div><div class="num up" style="font-size:22px;font-weight:700">+₪4,120</div></div>
+    <div class="card"><div class="sub">הפסדים שמומשו</div><div class="num down" style="font-size:22px;font-weight:700">−₪1,300</div></div>
+    <div class="card"><div class="sub">מס ששולם (25% × ₪2,820)</div><div class="num" style="font-size:22px;font-weight:700">₪705</div></div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card">
+      <h3>לאן הלך הכסף</h3>
+      <div class="bar"><i style="width:55%;background:#2753d6"></i><i style="width:20%;background:#6b3fd1"></i><i style="width:10%;background:#b26a00"></i><i style="width:15%;background:#c8372d"></i></div>
+      <table class="cost" style="margin-top:10px">
+        <tr><td>🔵 מס רווחי הון</td><td class="num">₪705</td></tr>
+        <tr><td>🟣 מס על דיבידנדים</td><td class="num">₪256</td></tr>
+        <tr><td>🟠 עמלות קנייה/מכירה</td><td class="num">₪128</td></tr>
+        <tr><td>🔴 עמלות המרה</td><td class="num">₪192</td></tr>
+        <tr class="total"><td>סה"כ</td><td class="num">₪1,281</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>🤔 ואם היית בבנק?</h3>
+      <p>אותן עסקאות בדיוק, עם עמלות של בנק:</p>
+      <table class="cost">
+        <tr><td>עמלות קנייה/מכירה</td><td class="num">₪128 → ₪744</td></tr>
+        <tr><td>דמי משמרת</td><td class="num">₪0 → ₪68</td></tr>
+        <tr><td>עמלות המרה</td><td class="num">₪192 → ₪480</td></tr>
+        <tr class="total"><td>הפרש בשנה אחת</td><td class="num down">₪972</td></tr>
+      </table>
+      <div class="alert info">בתיק של ₪50,000 זה כמעט 2% בשנה. על פני 20 שנה ההפרש מצטבר לעשרות אלפי שקלים.</div>
+    </div>
+  </div>
+  <div class="decide"><b>החלטה פתוחה · איך מחשבים רווח על מניה אמריקאית?</b><br>
+    הרווח מחושב <b>בשקלים</b>: מחיר המכירה כפול שער הדולר ביום המכירה, פחות מחיר הקנייה כפול שער הדולר ביום הקנייה. כך עושים רוב הברוקרים בישראל. ההשלכה: ייתכן שתשלם מס גם כשהמניה לא עלתה, אם הדולר התחזק.<br>
+    החוק האמיתי מורכב יותר (רווח "ריאלי" מותאם למדד, ואפשרות לחשב בדולרים). ההצעה: להתחיל בפשוט, ולהסביר את הניואנסים בשיעור על מיסוי.
+  </div>
+</section>
+
+<!-- ⑥ חוקי המנוע -->
+<section class="page" id="rules">
+  <h2>חוקי המנוע: איך פקודה מתבצעת</h2>
+  <p class="lead">מכונת הזמן עובדת על נתונים יומיים (פתיחה, גבוה, נמוך, סגירה). כך היא מחליטה מתי פקודה מתבצעת ובאיזה מחיר. הכללים זהים במצב "חי", רק שבו מחכים ליום אמיתי.</p>
+
+  <div class="rule"><h4>פקודת שוק</h4>
+    בורסה פתוחה (מצב חי): מתבצעת מיד במחיר האחרון. בורסה סגורה: מתבצעת במחיר <b>הפתיחה</b> של יום המסחר הבא.
+    <div class="ex">דוגמה: שלחת ביום שישי בערב. ביום שני המניה נפתחה ב-$250 במקום $266. קנית ב-$250.</div>
+  </div>
+  <div class="rule"><h4>לימיט קנייה במחיר L</h4>
+    מתבצעת ביום הראשון שבו המחיר הנמוך של היום ≤ L. המחיר: L, או הפתיחה אם היא נמוכה מ-L.
+    <div class="ex">לימיט $250. היום נפתח ב-$255 וירד עד $244, ולכן בוצע ב-$250. אם היום היה נפתח ב-$240, היה מתבצע ב-$240.</div>
+  </div>
+  <div class="rule"><h4>סטופ מכירה במחיר S (סטופ-לוס)</h4>
+    מופעל ביום הראשון שבו הנמוך ≤ S, ומתבצע ב-S או בפתיחה, הנמוך מביניהם. כלומר <b>אין הבטחה</b> לקבל S.
+    <div class="ex">סטופ $240. המניה נסגרה ב-$245 ולמחרת נפתחה ב-$220 אחרי דוח רע. מכרת ב-$220, לא ב-$240. בדיוק כך זה קורה במציאות.</div>
+  </div>
+  <div class="rule"><h4>תוקף</h4>"עד סוף יום": אם הפקודה לא בוצעה עד הסגירה, היא מבוטלת. "עד ביטול": נשארת עד 90 יום ואז פגה.</div>
+  <div class="rule"><h4>כסף ומניות</h4>
+    • רק מניות שלמות. • פקודת קנייה שומרת בקופה את ההערכה + 10%, והעודף משתחרר אחרי הביצוע. • אי אפשר למכור מניה שאין לך (בלי שורט). • אם בזמן הביצוע אין מספיק כסף, הפקודה נדחית ותופיע הודעה.
+  </div>
+  <div class="rule"><h4>אירועים אוטומטיים</h4>
+    • <b>פיצול</b>: הכמות מוכפלת והמחיר הממוצע מחולק, כך שהשווי לא משתנה. • <b>דיבידנד</b>: נכנס לקופה במטבע הנייר אחרי ניכוי 25% מס. • <b>דמי משמרת</b>: נגבים בסוף כל רבעון לפי שווי התיק. • <b>הפקדה חודשית</b>: נכנסת בתאריך שנקבע, ואם הוגדרה קנייה אוטומטית, נשלחת פקודת שוק.
+  </div>
+  <div class="decide"><b>מה לא נכלל (מכוון, לגרסה 1):</b> מחירים בתוך היום (רק יומי), Spread בין קנייה למכירה, מניות שנמחקו מהמסחר (מופיעות רק מניות שקיימות היום, ולכן מכונת הזמן "אופטימית" מעט. זה נקרא Survivorship bias ויוסבר בשיעור).</div>
+</section>
+
+<div class="note">סקיצה 02 · מנוע המסחר. כל המסכים כאן ייבנו בחבילה 2 בגרסה פונקציונלית. העיצוב הסופי של "התיק שלי" הוא בחבילה 4. מכונת הזמן (כפתורי +יום/+שבוע) היא חבילה 3, אבל המנוע נבנה מראש כך שיעבוד איתה.</div>
+</main>
+
+<script>
+  document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id===b.dataset.p));
+    scrollTo(0,0);
+  });
+  document.querySelectorAll('.grid').forEach(g=>{
+    const opts=[...g.children].filter(c=>c.classList.contains('opt'));
+    opts.forEach(o=>o.onclick=()=>opts.forEach(x=>x.classList.toggle('on',x===o)));
+  });
+  document.querySelectorAll('.chips').forEach(c=>{
+    const ch=[...c.children];ch.forEach(o=>o.onclick=()=>ch.forEach(x=>x.classList.toggle('on',x===o)));
+  });
+</script>
+</body>
+</html>

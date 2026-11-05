@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>סימולטור שוק ההון — סקיצה</title>
+<style>
+  :root{
+    --bg:#f4f6fa; --card:#fff; --ink:#1b2333; --muted:#6b7488; --line:#e3e7ef;
+    --brand:#2753d6; --brand-soft:#e9eefc; --up:#0f8a4f; --up-soft:#e5f5ec;
+    --down:#c8372d; --down-soft:#fbeceb; --warn:#b26a00; --warn-soft:#fff4e0;
+    --time:#6b3fd1; --time-soft:#f0eafc;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  .sketch-banner{background:#222;color:#fff;text-align:center;padding:6px;font-size:12px}
+  header{background:var(--card);border-bottom:1px solid var(--line);padding:10px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .logo{font-weight:700;font-size:18px}
+  .logo span{color:var(--brand)}
+  nav{display:flex;gap:4px}
+  nav button{border:0;background:none;padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit;color:var(--muted)}
+  nav button.on{background:var(--brand-soft);color:var(--brand);font-weight:600}
+  .spacer{flex:1}
+  .portfolio-pick{border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:#fff}
+  /* מצב זמן */
+  .timebar{display:flex;align-items:center;gap:10px;padding:10px 20px;background:var(--time-soft);border-bottom:1px solid #ddd2f7;flex-wrap:wrap}
+  .mode{display:flex;border:1px solid #cdbff2;border-radius:8px;overflow:hidden}
+  .mode button{border:0;padding:6px 12px;background:#fff;cursor:pointer;font:inherit}
+  .mode button.on{background:var(--time);color:#fff}
+  .date{font-weight:700;font-size:16px;color:var(--time)}
+  .step button{border:1px solid #cdbff2;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit}
+  .event{background:#fff;border-right:4px solid var(--warn);padding:6px 10px;border-radius:6px;font-size:13px}
+  main{padding:18px 20px;max-width:1280px;margin:auto}
+  .page{display:none}.page.on{display:block}
+  .grid{display:grid;gap:14px}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  .g-main{grid-template-columns:2fr 1fr}
+  @media(max-width:900px){.g4{grid-template-columns:1fr 1fr}.g-main{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card h3{margin:0 0 10px;font-size:15px}
+  .kpi .lbl{color:var(--muted);font-size:12px}
+  .kpi .val{font-size:22px;font-weight:700;margin-top:4px}
+  .up{color:var(--up)}.down{color:var(--down)}
+  .sub{font-size:12px;color:var(--muted)}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right}
+  th{font-size:12px;color:var(--muted);font-weight:600}
+  .t{border-bottom:1px dashed var(--brand);cursor:help;color:inherit}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--brand-soft);color:var(--brand)}
+  .tag.il{background:#e8f3ff;color:#1460a8}
+  .chart{height:190px;position:relative}
+  .chart svg{width:100%;height:100%}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:4px}
+  .dot{display:inline-block;width:10px;height:3px;vertical-align:middle;margin-left:4px}
+  .mentor{background:linear-gradient(180deg,#fff, #f7f9ff);border:1px solid #cfd9fb}
+  .mentor .who{font-weight:700;color:var(--brand)}
+  .alert{padding:10px 12px;border-radius:8px;margin-top:8px;font-size:13px}
+  .alert.warn{background:var(--warn-soft);color:#6b4100}
+  .alert.ok{background:var(--up-soft);color:#0b5a34}
+  /* מסחר */
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+  input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+  .seg{display:flex;gap:6px}
+  .seg button{flex:1;padding:9px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;font:inherit}
+  .seg button.buy{background:var(--up);color:#fff;border-color:var(--up)}
+  .seg button.sell.on{background:var(--down);color:#fff}
+  .ordtype{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .ordtype div{border:1px solid var(--line);border-radius:8px;padding:8px;cursor:pointer}
+  .ordtype div.on{border-color:var(--brand);background:var(--brand-soft)}
+  .ordtype b{display:block}
+  .ordtype small{color:var(--muted);font-size:11px}
+  .cost td{border:0;padding:4px 0}
+  .cost tr.total td{border-top:1px solid var(--line);font-weight:700;padding-top:8px}
+  .btn{display:block;width:100%;padding:11px;border:0;border-radius:8px;background:var(--brand);color:#fff;font:inherit;font-weight:600;cursor:pointer;margin-top:12px}
+  .quote{display:flex;align-items:baseline;gap:10px}
+  .quote .px{font-size:28px;font-weight:700}
+  .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+  .facts div{background:var(--bg);border-radius:8px;padding:8px}
+  .facts .sub{display:block}
+  /* שיעורים */
+  .path{display:grid;gap:10px}
+  .lesson{display:flex;gap:12px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+  .lesson .n{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--bg);flex:none}
+  .lesson.done .n{background:var(--up);color:#fff}
+  .lesson.now{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+  .lesson.now .n{background:var(--brand);color:#fff}
+  .lesson.lock{opacity:.5}
+  .lesson .meta{flex:1}
+  .mission{font-size:12px;background:var(--time-soft);color:var(--time);padding:2px 8px;border-radius:10px}
+  .module h4{margin:18px 0 8px;color:var(--muted);font-size:13px}
+  /* יומן */
+  .jr{border-right:4px solid var(--line);padding:10px 12px;background:#fff;border-radius:8px;margin-bottom:10px}
+  .jr.good{border-right-color:var(--up)}.jr.bad{border-right-color:var(--down)}
+  .jr .q{font-style:italic;color:var(--muted);margin:4px 0}
+  /* tooltip */
+  #tip{position:fixed;max-width:300px;background:#1b2333;color:#fff;padding:10px 12px;border-radius:8px;font-size:13px;line-height:1.5;display:none;z-index:10;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+  #tip b{color:#9fb6ff}
+  .note{font-size:12px;color:var(--muted);margin-top:22px;border-top:1px dashed var(--line);padding-top:10px}
+</style>
+</head>
+<body>
+<div class="sketch-banner">סקיצה לאישור — הנתונים במסך מומצאים. מרחפים/לוחצים על מילה עם קו מקווקו כדי לראות הסבר.</div>
+
+<header>
+  <div class="logo">📈 מסחר<span>־לומד</span></div>
+  <nav>
+    <button class="on" data-p="dash">התיק שלי</button>
+    <button data-p="trade">מסחר</button>
+    <button data-p="learn">שיעורים</button>
+    <button data-p="journal">יומן מסחר</button>
+  </nav>
+  <div class="spacer"></div>
+  <select class="portfolio-pick">
+    <option>תיק: "מכונת זמן — קורונה" (100,000 ₪)</option>
+    <option>תיק: "חי — אמיתי" (25,000 ₪)</option>
+    <option>+ תיק חדש…</option>
+  </select>
+</header>
+
+<div class="timebar">
+  <div class="mode"><button>🔴 חי</button><button class="on">⏳ מכונת זמן</button></div>
+  <div>התאריך בסימולציה: <span class="date">‏9 במרץ 2020</span></div>
+  <div class="step">קדימה: <button>+יום</button> <button>+שבוע</button> <button>+חודש</button></div>
+  <div class="event">⚠️ באותו שבוע: מחירי הנפט קרסו ו-S&amp;P 500 ירד 7.6% ביום אחד. המסחר נעצר זמנית (<span class="t" data-t="circuit">Circuit Breaker</span>).</div>
+</div>
+
+<main>
+<!-- ===== התיק שלי ===== -->
+<section class="page on" id="dash">
+  <div class="grid g4">
+    <div class="card kpi"><div class="lbl">שווי התיק</div><div class="val">94,310 ₪</div><div class="sub">התחלה: 100,000 ₪</div></div>
+    <div class="card kpi"><div class="lbl"><span class="t" data-t="pnl">רווח/הפסד</span> נטו</div><div class="val down">−5,690 ₪ (−5.7%)</div><div class="sub">אחרי עמלות ומס</div></div>
+    <div class="card kpi"><div class="lbl">מזומן פנוי</div><div class="val">31,200 ₪</div><div class="sub">33% מהתיק</div></div>
+    <div class="card kpi"><div class="lbl">לעומת <span class="t" data-t="bench">מדד ייחוס</span></div><div class="val up">+6.2%</div><div class="sub">S&amp;P 500 באותה תקופה: −11.9%</div></div>
+  </div>
+
+  <div class="grid g-main" style="margin-top:14px">
+    <div class="card">
+      <h3>שווי התיק לאורך זמן</h3>
+      <div class="chart">
+        <svg viewBox="0 0 600 190" preserveAspectRatio="none">
+          <line x1="0" y1="60" x2="600" y2="60" stroke="#e3e7ef" stroke-dasharray="4"/>
+          <polyline fill="none" stroke="#9aa3b5" stroke-width="2" points="0,60 60,58 120,62 180,64 240,70 300,95 360,120 420,150 480,140 540,155 600,148"/>
+          <polyline fill="none" stroke="#2753d6" stroke-width="3" points="0,60 60,59 120,61 180,62 240,66 300,78 360,90 420,104 480,96 540,100 600,92"/>
+        </svg>
+      </div>
+      <div class="legend"><span><i class="dot" style="background:#2753d6"></i>התיק שלך</span><span><i class="dot" style="background:#9aa3b5"></i>S&amp;P 500 (אילו פשוט קנית את המדד)</span><span>קו מקווקו = 100,000 ₪</span></div>
+
+      <h3 style="margin-top:18px">ההחזקות שלי</h3>
+      <table>
+        <tr><th>נייר</th><th>כמות</th><th><span class="t" data-t="avg">מחיר קנייה ממוצע</span></th><th>מחיר עכשיו</th><th>שווי (₪)</th><th>רווח/הפסד</th><th>% מהתיק</th></tr>
+        <tr><td><b>VOO</b> <span class="tag">ETF · ארה"ב</span><div class="sub">קרן סל על S&amp;P 500</div></td><td>40</td><td>$298.10</td><td>$251.40</td><td>35,320</td><td class="down">−15.7%</td><td>37%</td></tr>
+        <tr><td><b>AAPL</b> <span class="tag">מניה · ארה"ב</span><div class="sub">Apple</div></td><td>30</td><td>$288.00</td><td>$266.20</td><td>28,040</td><td class="down">−7.6%</td><td>30%</td></tr>
+        <tr><td><b>TEVA</b> <span class="tag il">מניה · ת"א</span><div class="sub">טבע</div></td><td>0</td><td>—</td><td>₪33.10</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr><td><b>מזומן</b></td><td></td><td></td><td></td><td>31,200</td><td></td><td>33%</td></tr>
+      </table>
+      <div class="sub" style="margin-top:6px">שער דולר ביום הסימולציה: 3.52 ₪ (<span class="t" data-t="fx">חשיפה למט"ח</span>)</div>
+    </div>
+
+    <div class="grid" style="align-content:start">
+      <div class="card mentor">
+        <h3>🤖 המנטור</h3>
+        <div class="who">על התיק שלך השבוע</div>
+        <p style="margin:6px 0">ירדת 5.7% בזמן שהשוק ירד כמעט 12%. זה בגלל ש-33% מהתיק במזומן — <b>הכרית</b> הזאת ריככה את הנפילה.</p>
+        <div class="alert warn">שים לב: 30% מהתיק במניה אחת (Apple). אם יקרה לה משהו ספציפי, זה יפגע בך הרבה. קרא על <span class="t" data-t="div">פיזור</span>.</div>
+        <div class="alert ok">שאלה למחשבה לפני שתלחץ "+שבוע": השוק צנח. אתה רוצה למכור מפחד, לקנות בזול, או לא לעשות כלום? כתוב ביומן מה ההחלטה ולמה.</div>
+      </div>
+      <div class="card">
+        <h3>📚 השיעור הבא</h3>
+        <b>שיעור 6: למה כולם אומרים "אל תמכור בפאניקה"?</b>
+        <p class="sub">8 דקות · משימה: לעבור את מרץ 2020 בלי למכור ולבדוק מה קרה ביוני</p>
+        <button class="btn" style="margin-top:6px">התחל שיעור</button>
+      </div>
+      <div class="card">
+        <h3>💸 מה עלה לך עד עכשיו</h3>
+        <table class="cost">
+          <tr><td>עמלות קנייה/מכירה</td><td>84 ₪</td></tr>
+          <tr><td><span class="t" data-t="custody">דמי משמרת</span></td><td>21 ₪</td></tr>
+          <tr><td>עמלת המרת מט"ח</td><td>173 ₪</td></tr>
+          <tr><td>מס רווחי הון ששולם</td><td>0 ₪</td></tr>
+          <tr class="total"><td>סה"כ</td><td>278 ₪</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== מסחר ===== -->
+<section class="page" id="trade">
+  <div class="grid g-main">
+    <div class="card">
+      <input placeholder="🔍 חפש מניה או קרן סל: Apple, טבע, S&P 500…" value="AAPL — Apple Inc.">
+      <div class="quote" style="margin-top:14px">
+        <div class="px">$266.20</div><div class="down">−$21.80 (−7.6%) היום</div>
+        <div class="sub">נכון ל-9.3.2020 · נסחרת ב-NASDAQ, שעות מסחר 16:30–23:00 שעון ישראל</div>
+      </div>
+      <div class="chart" style="margin-top:8px">
+        <svg viewBox="0 0 600 190" preserveAspectRatio="none">
+          <polyline fill="none" stroke="#2753d6" stroke-width="2.5" points="0,120 50,110 100,100 150,92 200,80 250,70 300,60 350,52 400,48 450,58 500,90 550,120 600,140"/>
+        </svg>
+      </div>
+      <div class="seg" style="margin-top:4px"><button>שבוע</button><button>חודש</button><button style="border-color:var(--brand)">שנה</button><button>5 שנים</button></div>
+      <div class="facts">
+        <div><span class="sub"><span class="t" data-t="cap">שווי שוק</span></span><b>$1.16 טריליון</b></div>
+        <div><span class="sub"><span class="t" data-t="pe">מכפיל רווח (P/E)</span></span><b>21.4</b></div>
+        <div><span class="sub"><span class="t" data-t="divd">תשואת דיבידנד</span></span><b>1.2%</b></div>
+        <div><span class="sub">שיא 52 שבועות</span><b>$327.85</b></div>
+        <div><span class="sub"><span class="t" data-t="vol">תנודתיות</span></span><b>גבוהה</b></div>
+        <div><span class="sub">סקטור</span><b>טכנולוגיה</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>פקודה חדשה</h3>
+      <div class="seg"><button class="buy">קנייה</button><button class="sell">מכירה</button></div>
+      <label>סוג פקודה</label>
+      <div class="ordtype">
+        <div class="on"><b>שוק</b><small>קנה עכשיו במחיר הנוכחי</small></div>
+        <div><b>לימיט</b><small>קנה רק אם המחיר ירד ל…</small></div>
+        <div><b>סטופ-לוס</b><small>מכור אוטומטית אם ירד ל…</small></div>
+      </div>
+      <label>כמות</label>
+      <input value="10">
+      <table class="cost" style="margin-top:12px">
+        <tr><td>10 × $266.20</td><td>$2,662.00</td></tr>
+        <tr><td>המרה לשקלים (3.52)</td><td>9,370 ₪</td></tr>
+        <tr><td>עמלת קנייה (0.1%, מינ' $5)</td><td>18 ₪</td></tr>
+        <tr><td>עמלת המרת מט"ח (0.3%)</td><td>28 ₪</td></tr>
+        <tr class="total"><td>יירד מהמזומן</td><td>9,416 ₪</td></tr>
+      </table>
+      <label>✍️ למה אתה קונה? (חובה — נחזור לזה ביומן)</label>
+      <textarea rows="3" placeholder="למשל: המניה ירדה 20% מהשיא ואני מאמין בחברה לטווח ארוך"></textarea>
+      <label>מתי תמכור? (אופציונלי)</label>
+      <input placeholder="למשל: אם תרד עוד 15%, או בעוד שנה">
+      <div class="alert warn">המנטור: אחרי הקנייה הזאת Apple תהיה 40% מהתיק. לרוב ממליצים שמניה בודדת לא תעבור 10–15%. בטוח?</div>
+      <button class="btn">שלח פקודה</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== שיעורים ===== -->
+<section class="page" id="learn">
+  <div class="grid g-main">
+    <div class="card">
+      <h3>מסלול הלימוד — מאפס למשקיע</h3>
+      <div class="module"><h4>מודול 1 · יסודות</h4>
+        <div class="path">
+          <div class="lesson done"><div class="n">✓</div><div class="meta"><b>מה זו מניה ולמה המחיר שלה זז?</b><div class="sub">6 דק'</div></div></div>
+          <div class="lesson done"><div class="n">✓</div><div class="meta"><b>קרן סל (ETF) — לקנות את כל השוק בפקודה אחת</b><div class="sub">7 דק'</div></div><span class="mission">משימה: קנה VOO ✓</span></div>
+          <div class="lesson done"><div class="n">✓</div><div class="meta"><b>עמלות, מס ודמי משמרת — מי לוקח לך מהרווח</b><div class="sub">8 דק'</div></div></div>
+        </div>
+      </div>
+      <div class="module"><h4>מודול 2 · סיכון</h4>
+        <div class="path">
+          <div class="lesson done"><div class="n">✓</div><div class="meta"><b>תנודתיות: למה ירידה של 50% צריכה עלייה של 100%</b></div></div>
+          <div class="lesson done"><div class="n">✓</div><div class="meta"><b>פיזור — לא לשים את כל הביצים בסל אחד</b></div></div>
+          <div class="lesson now"><div class="n">6</div><div class="meta"><b>למה כולם אומרים "אל תמכור בפאניקה"?</b><div class="sub">8 דק'</div></div><span class="mission">משימה: מכונת זמן — מרץ 2020</span></div>
+        </div>
+      </div>
+      <div class="module"><h4>מודול 3 · פקודות וזמן</h4>
+        <div class="path">
+          <div class="lesson lock"><div class="n">7</div><div class="meta"><b>לימיט וסטופ-לוס — לתת למערכת לעבוד בשבילך</b></div></div>
+          <div class="lesson lock"><div class="n">8</div><div class="meta"><b>ריבית דריבית והפקדה חודשית קבועה</b></div><span class="mission">משימה: 10 שנים בדקה</span></div>
+          <div class="lesson lock"><div class="n">9</div><div class="meta"><b>דולר-שקל: למה גם השער משפיע עליך</b></div></div>
+        </div>
+      </div>
+      <div class="module"><h4>מודול 4 · לבחור מניה · מודול 5 · לבנות תיק · מודול 6 · פסיכולוגיה של משקיע</h4></div>
+    </div>
+    <div class="card" style="align-self:start">
+      <h3>איך נראה שיעור</h3>
+      <ol style="padding-inline-start:18px;line-height:1.8">
+        <li>הסבר קצר בעברית פשוטה + דוגמה</li>
+        <li>3 שאלות קצרות לבדיקת הבנה</li>
+        <li><b>משימה בסימולטור</b> על נתונים אמיתיים</li>
+        <li>המנטור מנתח מה עשית ומה למדת</li>
+      </ol>
+      <div class="alert ok">התקדמות: 5 מתוך 24 שיעורים</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== יומן ===== -->
+<section class="page" id="journal">
+  <div class="card">
+    <h3>יומן המסחר — מה חשבת אז, ומה קרה באמת</h3>
+    <div class="jr bad">
+      <b>קנייה · AAPL · 30 יח' · 20.2.2020 · $288</b>
+      <div class="q">"Apple בשיא, כולם קונים, לא רוצה לפספס"</div>
+      <div>מאז: <span class="down">−7.6%</span> · <b>המנטור:</b> קנית כי "כולם קונים" — זה נקרא FOMO. הנימוק לא היה קשור לחברה עצמה. בשיעור 10 נלמד איך לבדוק אם מחיר "יקר".</div>
+    </div>
+    <div class="jr good">
+      <b>קנייה · VOO · 40 יח' · 3.1.2020 · $298</b>
+      <div class="q">"רוצה בסיס רחב של כל השוק לטווח ארוך"</div>
+      <div>מאז: <span class="down">−15.7%</span> · <b>המנטור:</b> ההחלטה עצמה טובה גם אם כרגע אתה בהפסד. נימוק לטווח ארוך + פיזור. נבדוק אותה שוב בעוד שנה.</div>
+    </div>
+    <div class="alert ok">דפוס שהמנטור זיהה: ההחלטות שנימקת "לטווח ארוך" טובות יותר מאלה שנימקת "כי עלה".</div>
+  </div>
+</section>
+
+<div class="note">
+סקיצה 01 · מסכים: התיק שלי / מסחר / שיעורים / יומן · פס סגול עליון = מצב מכונת זמן (במצב "חי" הוא הופך לפס של שעות מסחר ומצב השוק). המחירים, התאריכים והעמלות כאן להמחשה בלבד.
+</div>
+</main>
+
+<div id="tip"></div>
+<script>
+  const T={
+    circuit:"<b>מפסק זרם (Circuit Breaker)</b><br>כשהשוק האמריקאי צונח 7% ביום, הבורסה עוצרת את המסחר ל-15 דקות כדי שאנשים יירגעו.",
+    pnl:"<b>רווח/הפסד</b><br>כמה התיק שווה עכשיו פחות כמה הכנסת. 'נטו' = אחרי עמלות ומס.",
+    bench:"<b>מדד ייחוס</b><br>מול מה משווים אותך. אם פשוט היית קונה את כל השוק (S&P 500) — מה היה קורה? אם אתה לא מנצח אותו, עדיף פשוט לקנות אותו.",
+    avg:"<b>מחיר קנייה ממוצע</b><br>אם קנית באותה מניה כמה פעמים במחירים שונים — זה הממוצע המשוקלל.",
+    fx:"<b>חשיפה למט\"ח</b><br>מניות אמריקאיות נסחרות בדולר. אם הדולר נחלש מול השקל, אתה מפסיד גם אם המניה לא זזה.",
+    div:"<b>פיזור</b><br>לחלק את הכסף בין הרבה השקעות שונות, כדי שנפילה של אחת לא תפיל את כל התיק.",
+    custody:"<b>דמי משמרת</b><br>תשלום חודשי קטן לבנק/ברוקר על כך שהוא 'מחזיק' את המניות שלך. בישראל בערך 0.1%–0.2% בשנה.",
+    cap:"<b>שווי שוק</b><br>מחיר מניה × מספר המניות. כמה 'שווה' כל החברה לפי הבורסה.",
+    pe:"<b>מכפיל רווח (P/E)</b><br>כמה שנים של רווח החברה אתה משלם במחיר. 21 = משלמים פי 21 מהרווח השנתי. גבוה = השוק מצפה לצמיחה (או שזה יקר).",
+    divd:"<b>תשואת דיבידנד</b><br>כמה אחוז מהמחיר החברה מחלקת לך במזומן כל שנה. בישראל מנוכה מזה מס.",
+    vol:"<b>תנודתיות</b><br>כמה חזק המחיר קופץ למעלה ולמטה. גבוהה = מרגש, אבל גם מפחיד ומסוכן יותר."
+  };
+  const tip=document.getElementById('tip');
+  document.querySelectorAll('.t').forEach(el=>{
+    const show=e=>{tip.innerHTML=T[el.dataset.t]||'';tip.style.display='block';
+      const r=el.getBoundingClientRect();tip.style.top=(r.bottom+6)+'px';
+      tip.style.left=Math.max(8,Math.min(innerWidth-310,r.left))+'px';};
+    el.addEventListener('mouseenter',show);el.addEventListener('click',show);
+    el.addEventListener('mouseleave',()=>tip.style.display='none');
+  });
+  document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id===b.dataset.p));
+  });
+  document.querySelectorAll('.ordtype div').forEach(d=>d.onclick=()=>{
+    document.querySelectorAll('.ordtype div').forEach(x=>x.classList.toggle('on',x===d));
+  });
+</script>
+</body>
+</html>

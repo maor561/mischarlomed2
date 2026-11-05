@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+/* טוקנים לפי סקיצה 01 */
+:root {
+  --bg: #f4f6fa;
+  --card: #ffffff;
+  --ink: #1b2333;
+  --muted: #6b7488;
+  --line: #e3e7ef;
+  --brand: #2753d6;
+  --brand-soft: #e9eefc;
+  --up: #0f8a4f;
+  --up-soft: #e5f5ec;
+  --down: #c8372d;
+  --down-soft: #fbeceb;
+  --warn: #b26a00;
+  --warn-soft: #fff4e0;
+  --time: #6b3fd1;
+  --time-soft: #f0eafc;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-up: var(--up);
+  --color-up-soft: var(--up-soft);
+  --color-down: var(--down);
+  --color-down-soft: var(--down-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-time: var(--time);
+  --color-time-soft: var(--time-soft);
+  --font-sans: var(--font-rubik), "Segoe UI", Arial, sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+}
+
+@layer components {
+  .card {
+    @apply bg-card border border-line rounded-xl px-4 py-3.5;
+  }
+  .input {
+    @apply w-full px-2.5 py-2 border border-line rounded-lg bg-white outline-none focus:border-brand;
+  }
+  .btn {
+    @apply px-4 py-2.5 rounded-lg bg-brand text-white font-semibold cursor-pointer disabled:opacity-50;
+  }
+  .chip {
+    @apply px-3 py-1.5 rounded-lg border border-line bg-white cursor-pointer text-sm;
+  }
+  .chip-on {
+    @apply border-brand bg-brand-soft text-brand font-semibold;
+  }
+  /* מספרים ותאריכים נשארים משמאל לימין בתוך טקסט עברי */
+  .num {
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-variant-numeric: tabular-nums;
+  }
+}
