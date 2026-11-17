@@ -8,7 +8,8 @@ import OrderForm, { type OrderPrefill } from "./order-form";
 import FxForm from "./fx-form";
 import HistoryPanel from "./history-panel";
 import TaxPanel from "./tax-panel";
-import PlansPanel, { planWhen } from "./plans-panel";
+import PlansPanel, { planWhen, type PlanPrefill } from "./plans-panel";
+import StorePanel from "./store-panel";
 import TimeBar, { type AdvanceResult } from "./time-bar";
 import StopModal from "./stop-modal";
 import JourneyChart from "./journey-chart";
@@ -18,7 +19,7 @@ import JournalPanel from "./journal-panel";
 import type { Journal } from "@/lib/mentor/journal";
 
 /** חמש לשוניות ראשיות (D20). "עוד" מכילה את המסכים הפחות שכיחים */
-type Tab = "overview" | "order" | "chart" | "history" | "plans" | "journal" | "cash" | "tax" | "report" | "details";
+type Tab = "overview" | "order" | "chart" | "history" | "store" | "plans" | "journal" | "cash" | "tax" | "report" | "details";
 const MAIN = [
   { k: "overview", icon: "💼", label: "התיק שלי" },
   { k: "order", icon: "📝", label: "מסחר" },
@@ -27,6 +28,7 @@ const MAIN = [
   { k: "more", icon: "☰", label: "עוד" },
 ] as const;
 const MORE: { k: Tab; label: string; timeOnly?: boolean }[] = [
+  { k: "store", label: "🛍️ חנות" },
   { k: "plans", label: "🔁 תוכניות קבועות" },
   { k: "journal", label: "📓 יומן" },
   { k: "cash", label: "💱 מזומן ומט\"ח" },
@@ -34,7 +36,7 @@ const MORE: { k: Tab; label: string; timeOnly?: boolean }[] = [
   { k: "report", label: "📊 דו\"ח המסע", timeOnly: true },
   { k: "details", label: "⚙️ פרטי התיק" },
 ];
-const mainOf = (t: Tab) => (["plans", "journal", "cash", "tax", "report", "details"].includes(t) ? "more" : t);
+const mainOf = (t: Tab) => (["store", "plans", "journal", "cash", "tax", "report", "details"].includes(t) ? "more" : t);
 
 export default function PortfolioScreen() {
   const { id } = useParams<{ id: string }>();
@@ -49,6 +51,11 @@ export default function PortfolioScreen() {
     return symbol ? { side: sp.get("side") === "sell" ? "sell" : "buy", symbol, qty: sp.get("qty") ? Number(sp.get("qty")) || undefined : undefined } : null;
   });
   const [fxPrefill, setFxPrefill] = useState<number | null>(null);
+  // ?tab=plans&symbol=X (מדף נייר) או מהחנות: טיוטת תוכנית חדשה
+  const [planPrefill, setPlanPrefill] = useState<PlanPrefill | null>(() => {
+    const s = sp.get("tab") === "plans" ? sp.get("symbol") : null;
+    return s ? { name: `השקעה קבועה ב-${s}`, symbols: [s] } : null;
+  });
   const [orderKey, setOrderKey] = useState(0);
   const [flash, setFlash] = useState("");
   const [stop, setStop] = useState<Stop | null>(null);
@@ -226,7 +233,15 @@ export default function PortfolioScreen() {
         )}
         {tab === "history" && <HistoryPanel id={id} view={v} onChange={load} />}
         {tab === "tax" && <TaxPanel view={v} />}
-        {tab === "plans" && <PlansPanel id={id} view={v} onChange={load} prefillSymbol={sp.get("tab") === "plans" ? sp.get("symbol") : null} />}
+        {tab === "plans" && <PlansPanel key={planPrefill ? planPrefill.name : "plans"} id={id} view={v} onChange={load} prefill={planPrefill} />}
+        {tab === "store" && (
+          <StorePanel
+            id={id}
+            version={version}
+            onBought={async (msg) => { setFlash(msg); await load(); setTab("history"); }}
+            onPlan={(name, symbols) => { setPlanPrefill({ name, symbols }); setTab("plans"); }}
+          />
+        )}
         {tab === "chart" && <JourneyChart id={id} version={version} />}
         {tab === "report" && <ReportPanel id={id} version={version} />}
         {tab === "details" && (

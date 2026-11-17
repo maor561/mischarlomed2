@@ -17,6 +17,13 @@
   --warn-soft: #fff4e0;
   --time: #6b3fd1;
   --time-soft: #f0eafc;
+  /* צבעי כרטיסי האוספים בחנות (גרסה 2) */
+  --c-blue: #2f62e8;
+  --c-purple: #7a46db;
+  --c-green: #0e9a62;
+  --c-pink: #dd4d8f;
+  --c-yellow: #d99a00;
+  --c-gray: #56627a;
 }
 
 @theme inline {

@@ -21,10 +21,19 @@ export function planWhen(p: Pick<Plan, "freq" | "day">) {
  * תוכניות השקעה קבועות (D31): כמה תוכניות, כל אחת עם סכום, תדירות וחלוקה באחוזים.
  * היסטוריית הביצועים נלקחת מיומן התנועות (רשומות עם planId).
  */
-export default function PlansPanel({ id, view, onChange, prefillSymbol }: { id: string; view: PortfolioView; onChange: () => Promise<void> | void; prefillSymbol?: string | null }) {
+export type PlanPrefill = { name: string; symbols: string[] };
+
+/** חלוקה שווה באחוזים, כשהשארית הולכת לראשון, כך שהסכום תמיד 100 */
+function equalItems(symbols: string[]) {
+  const n = symbols.length;
+  const base = Math.floor((100 / n) * 100) / 100;
+  return symbols.map((symbol, j) => ({ symbol, pct: j === 0 ? Math.round((100 - base * (n - 1)) * 100) / 100 : base }));
+}
+
+export default function PlansPanel({ id, view, onChange, prefill }: { id: string; view: PortfolioView; onChange: () => Promise<void> | void; prefill?: PlanPrefill | null }) {
   const plans = view.portfolio.plans;
   const [draft, setDraft] = useState<Draft | null>(() =>
-    prefillSymbol ? { name: `השקעה קבועה ב-${prefillSymbol}`, amount: 500, freq: "monthly", day: 1, items: [{ symbol: prefillSymbol, pct: 100 }], source: "deposit" } : null,
+    prefill?.symbols.length ? { name: prefill.name, amount: 500, freq: "monthly", day: 1, items: equalItems(prefill.symbols), source: "deposit" } : null,
   );
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -107,12 +116,7 @@ export default function PlansPanel({ id, view, onChange, prefillSymbol }: { id: 
 function Editor({ draft, setDraft, busy, err, onCancel, onSave }: { draft: Draft; setDraft: (d: Draft) => void; busy: boolean; err: string; onCancel: () => void; onSave: () => void }) {
   const sum = Math.round(draft.items.reduce((a, i) => a + (i.pct || 0), 0) * 100) / 100;
   const setItem = (k: number, pct: number) => setDraft({ ...draft, items: draft.items.map((x, j) => (j === k ? { ...x, pct } : x)) });
-  const equal = () => {
-    const n = draft.items.length;
-    if (!n) return;
-    const base = Math.floor((100 / n) * 100) / 100;
-    setDraft({ ...draft, items: draft.items.map((x, j) => ({ ...x, pct: j === 0 ? Math.round((100 - base * (n - 1)) * 100) / 100 : base })) });
-  };
+  const equal = () => draft.items.length && setDraft({ ...draft, items: equalItems(draft.items.map((x) => x.symbol)) });
   return (
     <div className="card space-y-3">
       <h3 className="font-semibold">{draft.id ? "עריכת תוכנית" : "תוכנית חדשה"}</h3>
