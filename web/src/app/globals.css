@@ -1,35 +1,48 @@
 @import "tailwindcss";
 
-/* טוקנים לפי סקיצה 01 */
+/* טוקנים לפי סקיצה 07 (D30): חמים, עגולים, צבעוניים. השמות הישנים נשמרו כדי שכל המסכים יעברו יחד */
 :root {
-  --bg: #f4f6fa;
+  --bg: #fbf8f3;
   --card: #ffffff;
-  --ink: #1b2333;
-  --muted: #6b7488;
-  --line: #e3e7ef;
-  --brand: #2753d6;
-  --brand-soft: #e9eefc;
-  --up: #0f8a4f;
-  --up-soft: #e5f5ec;
-  --down: #c8372d;
-  --down-soft: #fbeceb;
+  --ink: #1d1640;
+  --ink-2: #4a4470;
+  --muted: #8a85a6;
+  --line: #ece8f5;
+  --brand: #6a4cf0;
+  --brand-soft: #ece6ff;
+  --up: #14a35a;
+  --up-soft: #e6f6ec;
+  --down: #e0453a;
+  --down-soft: #fde7e5;
   --warn: #b26a00;
-  --warn-soft: #fff4e0;
-  --time: #6b3fd1;
-  --time-soft: #f0eafc;
-  /* צבעי כרטיסי האוספים בחנות (גרסה 2) */
-  --c-blue: #2f62e8;
-  --c-purple: #7a46db;
-  --c-green: #0e9a62;
-  --c-pink: #dd4d8f;
-  --c-yellow: #d99a00;
-  --c-gray: #56627a;
+  --warn-soft: #fff3df;
+  --time: #7b5cff;
+  --time-soft: #ece6ff;
+  --sun: #ffd23f;
+  --sun-soft: #fff4c7;
+  --coral: #ff7a59;
+  --coral-soft: #ffe6de;
+  --mint: #2ec4a6;
+  --mint-soft: #d8f6ef;
+  --sky: #5b8cff;
+  --sky-soft: #e3ebff;
+  --plum: #7b5cff;
+  --plum-soft: #ece6ff;
+  --soft: #f4f1fa;
+  /* צבעי כרטיסי האוספים בחנות */
+  --c-blue: var(--sky-soft);
+  --c-purple: var(--plum-soft);
+  --c-green: var(--mint-soft);
+  --c-pink: var(--coral-soft);
+  --c-yellow: var(--sun-soft);
+  --c-gray: #eef0f4;
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-card: var(--card);
   --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-brand: var(--brand);
@@ -42,6 +55,17 @@
   --color-warn-soft: var(--warn-soft);
   --color-time: var(--time);
   --color-time-soft: var(--time-soft);
+  --color-sun: var(--sun);
+  --color-sun-soft: var(--sun-soft);
+  --color-coral: var(--coral);
+  --color-coral-soft: var(--coral-soft);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
+  --color-sky: var(--sky);
+  --color-sky-soft: var(--sky-soft);
+  --color-plum: var(--plum);
+  --color-plum-soft: var(--plum-soft);
+  --color-soft: var(--soft);
   --font-sans: var(--font-rubik), "Segoe UI", Arial, sans-serif;
 }
 
@@ -54,22 +78,38 @@ body {
 
 @layer components {
   .card {
-    @apply bg-card border border-line rounded-xl px-4 py-3.5;
+    @apply bg-card rounded-[22px] px-4 py-3.5 shadow-[0_2px_0_rgba(29,22,64,0.04)];
   }
   .input {
-    @apply w-full px-2.5 py-2 border border-line rounded-lg bg-white outline-none focus:border-brand;
+    @apply w-full px-3 py-2 border border-line rounded-xl bg-white outline-none focus:border-brand;
   }
   .btn {
-    @apply px-4 py-2.5 rounded-lg bg-brand text-white font-semibold cursor-pointer disabled:opacity-50;
+    @apply px-5 py-2.5 rounded-full bg-ink text-white font-bold cursor-pointer disabled:opacity-40;
+  }
+  .btn-sun {
+    @apply px-5 py-2.5 rounded-full bg-sun text-ink font-bold cursor-pointer disabled:opacity-40;
   }
   .btn-ghost {
-    @apply px-4 py-2.5 rounded-lg border border-line bg-white font-semibold cursor-pointer disabled:opacity-50;
+    @apply px-5 py-2.5 rounded-full bg-soft text-ink font-bold cursor-pointer disabled:opacity-40;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold;
+  }
+  /* בורר מקטעים: "שבוע / חודש / שנה" */
+  .seg {
+    @apply flex bg-soft rounded-full p-[3px];
+  }
+  .seg > button {
+    @apply flex-1 text-center py-1.5 px-2 rounded-full text-xs font-semibold text-muted cursor-pointer;
+  }
+  .seg > button[aria-pressed="true"] {
+    @apply bg-white text-ink shadow-[0_1px_3px_rgba(0,0,0,0.08)];
   }
   .chip {
-    @apply px-3 py-1.5 rounded-lg border border-line bg-white cursor-pointer text-sm;
+    @apply px-3 py-1.5 rounded-full bg-soft text-ink-2 cursor-pointer text-sm font-semibold;
   }
   .chip-on {
-    @apply border-brand bg-brand-soft text-brand font-semibold;
+    @apply bg-ink text-white font-semibold;
   }
   /* מספרים ותאריכים נשארים משמאל לימין בתוך טקסט עברי */
   .num {

@@ -30,7 +30,7 @@ export default function ReportPanel({ id, version }: { id: string; version: stri
         <div className="rounded-lg p-2.5 text-sm bg-time-soft text-time">📍 זה דו&quot;ח ביניים, נכון ל-{dateHe(r.period.end)}. הדו&quot;ח המלא נפתח כשמגיעים לסוף המסע.</div>
       )}
       {r.reveal && (
-        <div className="rounded-2xl p-5 text-white" style={{ background: "linear-gradient(135deg,#6b3fd1,#2753d6)" }}>
+        <div className="rounded-2xl p-5 text-white" style={{ background: "linear-gradient(135deg,#7b5cff,#1d1640)" }}>
           <div className="text-sm opacity-80">🎭 חשיפה</div>
           <h2 className="text-xl font-bold">{r.reveal.name ? `היית ב${r.reveal.name}!` : "זו הייתה התקופה שלך"}</h2>
           <div className="num">

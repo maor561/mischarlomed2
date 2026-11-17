@@ -8,6 +8,18 @@ import { api } from "@/lib/format";
 import { GLOSSARY_BY_ID } from "@/lib/glossary";
 import { LESSON_BY_N, LESSONS, MODULES, type MissionSetup } from "@/lib/lessons/content";
 import type { LessonProgress } from "@/lib/lessons/progress";
+import { setAdvanced, useAdvanced } from "@/lib/use-advanced";
+
+/** שיעור 10 מציע להדליק את "מצב מתקדם" (D32): לימיט, סטופ ותוקף בחלון הקנייה */
+function AdvancedOffer() {
+  const on = useAdvanced();
+  return (
+    <div className="bg-plum-soft rounded-2xl px-3.5 py-3 flex items-center gap-3 flex-wrap">
+      <span className="flex-1 min-w-[200px]">🛠️ <b>מצב מתקדם</b> מוסיף לחלון הקנייה לימיט, סטופ ותוקף. {on ? "הוא דלוק." : "כרגע הוא כבוי."}</span>
+      <button className={on ? "btn-ghost" : "btn"} onClick={() => setAdvanced(!on)}>{on ? "לכבות" : "להדליק מצב מתקדם"}</button>
+    </div>
+  );
+}
 
 /**
  * כל רצף באנגלית (S&P 500, VOO) וכל מספר מבודדים בנפרד, כדי ששני רצפים סמוכים
@@ -95,6 +107,7 @@ function LessonInner({ n }: { n: number }) {
             <b>דוגמה מהנתונים:</b> <Rich text={l.example} />
           </div>
           <div className="bg-up-soft text-[#0b5a34] rounded-lg px-3.5 py-2.5">💡 <b>הדבר האחד לזכור:</b> {l.key}</div>
+          {l.n === 10 && <AdvancedOffer />}
           <div className="text-sm text-muted">
             מונחים בשיעור:{" "}
             {l.terms.map((t, i) => (

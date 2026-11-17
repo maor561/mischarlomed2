@@ -14,7 +14,7 @@ export function appIcon(size: number, maskable = false) {
     .join(" ");
   return new ImageResponse(
     (
-      <div style={{ width: size, height: size, display: "flex", background: "#2753d6", borderRadius: maskable ? 0 : size * 0.22 }}>
+      <div style={{ width: size, height: size, display: "flex", background: "#1d1640", borderRadius: maskable ? 0 : size * 0.22 }}>
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           <polyline points={pts} fill="none" stroke="#ffffff" strokeWidth={size * 0.09} strokeLinecap="round" strokeLinejoin="round" />
           <circle cx={pad + w} cy={pad + 0.15 * w} r={size * 0.075} fill="#7ee2a8" />

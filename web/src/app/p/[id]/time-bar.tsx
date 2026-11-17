@@ -124,7 +124,7 @@ export default function TimeBar({ id, view, onAdvanced, onPlayingChange, resume 
   const pct = total ? Math.min(100, (now / total) * 100) : null;
 
   return (
-    <div className="bg-time-soft border-b border-[#ddd2f7] px-4 md:px-6 py-2.5">
+    <div className="bg-time-soft rounded-[22px] px-3 md:px-4 py-2.5">
       <div className="flex items-center gap-3 flex-wrap">
         <b className="text-base hidden md:inline">{p.name}</b>
         <span className="text-xs px-2 py-0.5 rounded-full bg-time text-white hidden md:inline">{p.blind ? "🎭 מסע עיוור" : "⏳ מכונת זמן"}</span>

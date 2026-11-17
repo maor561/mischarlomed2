@@ -1,10 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { api, dateHe, money } from "@/lib/format";
 import type { PortfolioView, Stop } from "@/lib/engine/service";
-import OrderForm, { type OrderPrefill } from "./order-form";
+import TradeSheet, { type TradeIntent } from "@/components/trade-sheet";
 import FxForm from "./fx-form";
 import HistoryPanel from "./history-panel";
 import TaxPanel from "./tax-panel";
@@ -14,49 +15,56 @@ import TimeBar, { type AdvanceResult } from "./time-bar";
 import StopModal from "./stop-modal";
 import JourneyChart from "./journey-chart";
 import ReportPanel from "./report-panel";
-import OverviewPanel from "./overview-panel";
+import AnalysisPanel from "./overview-panel";
 import JournalPanel from "./journal-panel";
+import HomePanel from "./home-panel";
+import MorePanel, { MORE_ITEMS, type MoreTab } from "./more-panel";
 import type { Journal } from "@/lib/mentor/journal";
 
-/** חמש לשוניות ראשיות (D20). "עוד" מכילה את המסכים הפחות שכיחים */
-type Tab = "overview" | "order" | "chart" | "history" | "store" | "plans" | "journal" | "cash" | "tax" | "report" | "details";
-const MAIN = [
-  { k: "overview", icon: "💼", label: "התיק שלי" },
-  { k: "order", icon: "📝", label: "מסחר" },
-  { k: "chart", icon: "📈", label: "מול המדד" },
-  { k: "history", icon: "📜", label: "היסטוריה" },
+type Main = "home" | "store" | "plans" | "more";
+type Tab = Main | MoreTab;
+const MAIN: { k: Main | "learn"; icon: string; label: string }[] = [
+  { k: "home", icon: "🏠", label: "בית" },
+  { k: "store", icon: "🛍️", label: "חנות" },
+  { k: "plans", icon: "🔁", label: "תוכניות" },
+  { k: "learn", icon: "🎓", label: "ללמוד" },
   { k: "more", icon: "☰", label: "עוד" },
-] as const;
-const MORE: { k: Tab; label: string; timeOnly?: boolean }[] = [
-  { k: "store", label: "🛍️ חנות" },
-  { k: "plans", label: "🔁 תוכניות קבועות" },
-  { k: "journal", label: "📓 יומן" },
-  { k: "cash", label: "💱 מזומן ומט\"ח" },
-  { k: "tax", label: "🧾 מס ועלויות" },
-  { k: "report", label: "📊 דו\"ח המסע", timeOnly: true },
-  { k: "details", label: "⚙️ פרטי התיק" },
 ];
-const mainOf = (t: Tab) => (["store", "plans", "journal", "cash", "tax", "report", "details"].includes(t) ? "more" : t);
+const TITLES: Record<Tab, string> = {
+  home: "בית", store: "חנות", plans: "תוכניות קבועות", more: "עוד",
+  ...Object.fromEntries(MORE_ITEMS.map((m) => [m.k, `${m.icon} ${m.title}`])),
+} as Record<Tab, string>;
+const isMain = (t: Tab): t is Main => ["home", "store", "plans", "more"].includes(t);
 
+/** כתובות ישנות (?tab=overview / order / cash) ממשיכות לעבוד */
+function tabFromUrl(t: string | null): Tab {
+  if (!t || t === "overview" || t === "order") return "home";
+  if (["home", "store", "plans", "more", ...MORE_ITEMS.map((m) => m.k)].includes(t)) return t as Tab;
+  return "home";
+}
+
+/**
+ * מסך התיק בגרסה 2 (סקיצה 07, D30): סרגל תחתון בטלפון, תפריט צד במחשב,
+ * חלון קנייה שנפתח מכל מקום, ו"עוד" לכל השאר.
+ */
 export default function PortfolioScreen() {
   const { id } = useParams<{ id: string }>();
   const sp = useSearchParams();
   const router = useRouter();
   const [v, setV] = useState<PortfolioView | null>(null);
   const [err, setErr] = useState("");
-  // קישור מדף נייר: ?tab=order&side=buy&symbol=AAPL
-  const [tab, setTabState] = useState<Tab>(() => (sp.get("tab") as Tab) || "overview");
-  const [prefill, setPrefill] = useState<OrderPrefill | null>(() => {
-    const symbol = sp.get("symbol");
-    return symbol ? { side: sp.get("side") === "sell" ? "sell" : "buy", symbol, qty: sp.get("qty") ? Number(sp.get("qty")) || undefined : undefined } : null;
+  const [tab, setTabState] = useState<Tab>(() => tabFromUrl(sp.get("tab")));
+  // קישור מדף נייר / משימה: ?tab=order&side=buy&symbol=AAPL פותח את חלון הקנייה
+  const [trade, setTrade] = useState<TradeIntent | null>(() => {
+    if (sp.get("tab") !== "order") return null;
+    const qty = sp.get("qty") ? Number(sp.get("qty")) || undefined : undefined;
+    return { side: sp.get("side") === "sell" ? "sell" : "buy", symbol: sp.get("symbol"), qty };
   });
   const [fxPrefill, setFxPrefill] = useState<number | null>(null);
-  // ?tab=plans&symbol=X (מדף נייר) או מהחנות: טיוטת תוכנית חדשה
   const [planPrefill, setPlanPrefill] = useState<PlanPrefill | null>(() => {
     const s = sp.get("tab") === "plans" ? sp.get("symbol") : null;
     return s ? { name: `השקעה קבועה ב-${s}`, symbols: [s] } : null;
   });
-  const [orderKey, setOrderKey] = useState(0);
   const [flash, setFlash] = useState("");
   const [stop, setStop] = useState<Stop | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -126,150 +134,169 @@ export default function PortfolioScreen() {
   const p = v.portfolio;
   const isTime = p.mode === "time";
   const version = `${p.simDate}-${v.history.length}-${v.pending.length}`;
-  const more = MORE.filter((m) => !m.timeOnly || isTime);
-  const active = mainOf(tab);
-  const goMain = (k: (typeof MAIN)[number]["k"]) => setTab(k === "more" ? (active === "more" ? tab : "cash") : k);
-  const trade = (side: "buy" | "sell", symbol: string, qty?: number) => {
-    setPrefill({ side, symbol, qty });
-    setTab("order");
-  };
+  const due = journal?.dueCount ?? 0;
+  const activeMain: Main = isMain(tab) ? tab : "more";
+  const go = (k: Main | "learn") => (k === "learn" ? router.push("/lessons") : setTab(k));
+  const openTrade = (t: TradeIntent) => setTrade(t);
+
+  const navBadge = (k: string) =>
+    k === "more" && due > 0 ? <span className="absolute top-1 left-1/2 ms-2 w-2 h-2 rounded-full bg-plum" /> : null;
 
   return (
-    <>
-      {isTime ? (
-        <TimeBar id={id} view={v} onAdvanced={onAdvanced} onPlayingChange={setPlaying} resume={resume} />
-      ) : (
-        <div className="px-4 md:px-6 py-2.5 flex items-center gap-3 flex-wrap border-b bg-card border-line">
-          <b className="text-base">{p.name}</b>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-down-soft text-down">🔴 חי</span>
-          <span className="text-sm">
-            היום: <b className="num">{dateHe(p.simDate)}</b>
-          </span>
-          <span className="flex-1" />
-          <span className="text-xs text-muted num">דולר: ₪{v.fx.toFixed(4)}</span>
-        </div>
-      )}
-      {stop && (
-        <StopModal
-          stop={stop}
-          blind={p.blind}
-          onClose={() => setStop(null)}
-          onContinue={() => {
-            setStop(null);
-            setResume((n) => n + 1);
-          }}
-          onOrder={() => {
-            setStop(null);
-            setTab("order");
-          }}
-          onReport={() => {
-            setStop(null);
-            setTab("report");
-          }}
-          onNote={async (text) => {
-            await api(`/api/portfolios/${id}/journal/note`, { method: "POST", json: { text, context: stop.title } });
-            setJv((n) => n + 1);
-          }}
-        />
-      )}
-      {flash && (
-        <div className="px-4 md:px-6 py-2 text-sm bg-brand-soft text-brand flex">
-          <span className="flex-1">{flash}</span>
-          <button onClick={() => setFlash("")}>✕</button>
-        </div>
-      )}
-
-      <main className="max-w-6xl mx-auto p-4 md:p-6 pb-24 md:pb-6 space-y-4">
-        {/* מחשב: לשוניות למעלה */}
-        <div className="hidden md:flex gap-1 border-b border-line">
-          {MAIN.map((x) => (
-            <button key={x.k} onClick={() => goMain(x.k)} className={`px-3 py-2 text-sm whitespace-nowrap border-b-2 -mb-px ${active === x.k ? "border-brand text-brand font-semibold" : "border-transparent text-muted"}`}>
-              {x.icon} {x.label}
-              {x.k === "history" && v.pending.length > 0 && <span className="ms-1 text-xs bg-warn-soft text-warn rounded-full px-1.5">{v.pending.length}</span>}
-              {x.k === "more" && (journal?.dueCount ?? 0) > 0 && <span className="ms-1 text-xs bg-time text-white rounded-full px-1.5">⏰{journal!.dueCount}</span>}
+    <div className="md:flex min-h-screen">
+      {/* מחשב: תפריט צד */}
+      <aside className="hidden md:flex flex-col w-52 shrink-0 bg-card border-e border-line px-3 py-5 sticky top-0 h-screen">
+        <Link href="/" className="text-lg font-extrabold px-3 pb-4">📈 מסחר־לומד</Link>
+        {[...MAIN.slice(0, 4), { k: "journal" as const, icon: "📓", label: "יומן" }, MAIN[4]].map((x) => {
+          const on = x.k === "journal" ? tab === "journal" : x.k !== "learn" && activeMain === x.k && !(x.k === "more" && tab === "journal");
+          return (
+            <button
+              key={x.k}
+              onClick={() => (x.k === "journal" ? setTab("journal") : go(x.k))}
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl font-semibold text-start mb-0.5 ${on ? "bg-ink text-white" : "text-ink-2 hover:bg-soft"}`}
+            >
+              <span>{x.icon}</span>
+              <span className="flex-1">{x.label}</span>
+              {x.k === "journal" && due > 0 && <span className="pill !px-2 bg-plum text-white">⏰{due}</span>}
             </button>
-          ))}
+          );
+        })}
+        <span className="flex-1" />
+        <div className="px-3 text-xs text-muted">
+          <b className="block text-ink text-sm truncate">{p.name}</b>
+          {isTime ? (p.blind ? "🎭 מסע עיוור" : "⏳ מכונת זמן") : "🔴 תיק חי"}
+          <Link href="/" className="block underline mt-1">החלפת תיק</Link>
         </div>
-        {active === "more" && (
-          <div className="flex gap-1.5 flex-wrap">
-            {more.map((m) => (
-              <button key={m.k} className={`chip ${tab === m.k ? "chip-on" : ""}`} onClick={() => setTab(m.k)}>
-                {m.label}
-                {m.k === "journal" && (journal?.dueCount ?? 0) > 0 && <span className="ms-1 text-xs bg-time text-white rounded-full px-1.5">⏰{journal!.dueCount}</span>}
-              </button>
-            ))}
-          </div>
-        )}
+      </aside>
 
-        {tab === "overview" && <OverviewPanel id={id} view={v} version={version} journal={journal} onTrade={trade} onTab={setTab} />}
-        {tab === "journal" && <JournalPanel key={journal ? "loaded" : "loading"} id={id} journal={journal} onChange={() => setJv((n) => n + 1)} />}
-
-        {/* טופס הפקודה נשאר טעון (מוסתר) כדי שלא יתאפס כשקופצים להמרה וחוזרים */}
-        <div hidden={tab !== "order"}>
-          <OrderForm
-            key={`${orderKey}-${prefill ? `${prefill.side}-${prefill.symbol}` : "new"}`}
-            id={id}
-            view={v}
-            prefill={prefill}
-            onDone={async (msg) => { setFlash(msg); setPrefill(null); setOrderKey((k) => k + 1); await load(); setTab("history"); }}
-            onNeedCash={(ils) => { setFxPrefill(ils); setTab("cash"); }}
-            playing={playing}
-          />
-        </div>
-        {tab === "cash" && (
-          <FxForm
-            key={fxPrefill ?? "none"}
-            id={id}
-            view={v}
-            prefill={fxPrefill}
-            onDone={async (msg) => {
-              setFlash(fxPrefill ? `${msg} · חזרת לפקודה, ואפשר לשלוח אותה` : msg);
-              const back = fxPrefill != null;
-              setFxPrefill(null);
-              await load();
-              if (back) setTab("order");
+      <div className="flex-1 min-w-0">
+        {stop && (
+          <StopModal
+            stop={stop}
+            blind={p.blind}
+            onClose={() => setStop(null)}
+            onContinue={() => {
+              setStop(null);
+              setResume((n) => n + 1);
+            }}
+            onOrder={() => {
+              setStop(null);
+              openTrade({ side: "buy" });
+            }}
+            onReport={() => {
+              setStop(null);
+              setTab("report");
+            }}
+            onNote={async (text) => {
+              await api(`/api/portfolios/${id}/journal/note`, { method: "POST", json: { text, context: stop.title } });
+              setJv((n) => n + 1);
             }}
           />
         )}
-        {tab === "history" && <HistoryPanel id={id} view={v} onChange={load} />}
-        {tab === "tax" && <TaxPanel view={v} />}
-        {tab === "plans" && <PlansPanel key={planPrefill ? planPrefill.name : "plans"} id={id} view={v} onChange={load} prefill={planPrefill} />}
-        {tab === "store" && (
-          <StorePanel
-            id={id}
-            version={version}
-            onBought={async (msg) => { setFlash(msg); await load(); setTab("history"); }}
-            onPlan={(name, symbols) => { setPlanPrefill({ name, symbols }); setTab("plans"); }}
-          />
-        )}
-        {tab === "chart" && <JourneyChart id={id} version={version} />}
-        {tab === "report" && <ReportPanel id={id} version={version} />}
-        {tab === "details" && (
-          <div className="card text-sm space-y-1.5 max-w-xl">
-            <h3 className="font-semibold">פרטי התיק</h3>
-            <div>נפתח ב-<span className="num">{dateHe(p.startDate)}</span> עם <span className="num">{money(p.initialCapital, "ILS", 0)}</span></div>
-            {isTime && <div>סוף המסע: <span className="num">{p.endDate ? dateHe(p.endDate) : "עד היום"}</span></div>}
-            <div>עמלות: {p.fees.kind === "bank" ? "🏦 בנק" : p.fees.kind === "online" ? "💻 ברוקר אונליין" : p.fees.kind === "app" ? "📱 אפליקציה" : "✏️ מותאם"} ({p.fees.app ? <>בארה&quot;ב {p.fees.app.freeActions} פעולות או {p.fees.app.freeShares} מניות בחודש חינם, ואז ${p.fees.app.perShare} למניה, מינימום ${p.fees.app.min}</> : <>קנייה/מכירה בארה&quot;ב {p.fees.usPct}%, מינימום ${p.fees.usMin}</>} · המרה {p.fees.fxPct}% · משמרת {p.fees.custodyPctYear}% לשנה)</div>
-            {p.plans.map((pl) => (
-              <div key={pl.id}>🔁 {pl.name}: <span className="num">{money(pl.amount, "ILS", 0)}</span> {planWhen(pl)}{pl.status === "paused" && " (מושהית)"}</div>
-            ))}
-            <div>מדד השוואה: {p.benchmark === "TA125" ? "ת\"א-125" : "S&P 500"}</div>
-            <button className="text-xs text-down underline pt-3" onClick={remove}>מחיקת התיק</button>
-          </div>
-        )}
-      </main>
 
-      {/* טלפון: סרגל תחתון (D20) */}
+        <main className="max-w-5xl mx-auto p-4 md:p-6 pb-28 md:pb-8 space-y-4">
+          {isTime ? (
+            <TimeBar id={id} view={v} onAdvanced={onAdvanced} onPlayingChange={setPlaying} resume={resume} />
+          ) : (
+            <div className="flex items-center gap-2 flex-wrap">
+              <b className="md:hidden">{p.name}</b>
+              <span className="pill bg-down-soft text-down">🔴 חי · <span className="num">{dateHe(p.simDate)}</span></span>
+              <span className="flex-1" />
+              <span className="text-xs text-muted num">דולר: ₪{v.fx.toFixed(3)}</span>
+            </div>
+          )}
+
+          {flash && (
+            <div className="rounded-2xl px-4 py-2.5 text-sm bg-plum-soft text-ink flex gap-2">
+              <span className="flex-1">{flash}</span>
+              <button onClick={() => setFlash("")} aria-label="סגירה">✕</button>
+            </div>
+          )}
+
+          {!isMain(tab) && (
+            <div className="flex items-center gap-2">
+              <button className="text-sm text-muted" onClick={() => setTab("more")}>→ עוד</button>
+              <h1 className="text-xl font-extrabold">{TITLES[tab]}</h1>
+            </div>
+          )}
+          {tab === "store" && <h1 className="text-xl font-extrabold">חנות</h1>}
+          {tab === "more" && <h1 className="text-xl font-extrabold">עוד</h1>}
+
+          {tab === "home" && <HomePanel id={id} view={v} version={version} journal={journal} onTrade={openTrade} onTab={setTab} />}
+          {tab === "store" && (
+            <StorePanel
+              id={id}
+              version={version}
+              onBought={async (msg) => { setFlash(msg); await load(); setTab("home"); }}
+              onPlan={(name, symbols) => { setPlanPrefill({ name, symbols }); setTab("plans"); }}
+            />
+          )}
+          {tab === "plans" && <PlansPanel key={planPrefill ? planPrefill.name : "plans"} id={id} view={v} onChange={load} prefill={planPrefill} />}
+          {tab === "more" && <MorePanel isTime={isTime} dueCount={due} onOpen={setTab} />}
+
+          {tab === "journal" && <JournalPanel key={journal ? "loaded" : "loading"} id={id} journal={journal} onChange={() => setJv((n) => n + 1)} />}
+          {tab === "chart" && <JourneyChart id={id} version={version} />}
+          {tab === "analysis" && <AnalysisPanel id={id} view={v} version={version} />}
+          {tab === "history" && <HistoryPanel id={id} view={v} onChange={load} />}
+          {tab === "tax" && <TaxPanel view={v} />}
+          {tab === "report" && <ReportPanel id={id} version={version} />}
+          {tab === "cash" && (
+            <FxForm
+              key={fxPrefill ?? "none"}
+              id={id}
+              view={v}
+              prefill={fxPrefill}
+              onDone={async (msg) => {
+                setFlash(msg);
+                setFxPrefill(null);
+                await load();
+              }}
+            />
+          )}
+          {tab === "details" && (
+            <div className="card text-sm space-y-1.5 max-w-xl">
+              <div>נפתח ב-<span className="num">{dateHe(p.startDate)}</span> עם <span className="num">{money(p.initialCapital, "ILS", 0)}</span></div>
+              {isTime && <div>סוף המסע: <span className="num">{p.endDate ? dateHe(p.endDate) : "עד היום"}</span></div>}
+              <div>עמלות: {p.fees.kind === "bank" ? "🏦 בנק" : p.fees.kind === "online" ? "💻 ברוקר אונליין" : p.fees.kind === "app" ? "📱 אפליקציה" : "✏️ מותאם"} ({p.fees.app ? <>בארה&quot;ב {p.fees.app.freeActions} פעולות או {p.fees.app.freeShares} מניות בחודש חינם, ואז ${p.fees.app.perShare} למניה, מינימום ${p.fees.app.min}</> : <>קנייה/מכירה בארה&quot;ב {p.fees.usPct}%, מינימום ${p.fees.usMin}</>} · המרה {p.fees.fxPct}% · משמרת {p.fees.custodyPctYear}% לשנה)</div>
+              {p.plans.map((pl) => (
+                <div key={pl.id}>🔁 {pl.name}: <span className="num">{money(pl.amount, "ILS", 0)}</span> {planWhen(pl)}{pl.status === "paused" && " (מושהית)"}</div>
+              ))}
+              <div>מדד השוואה: {p.benchmark === "TA125" ? "ת\"א-125" : "S&P 500"}</div>
+              <button className="text-xs text-down underline pt-3" onClick={remove}>מחיקת התיק</button>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {trade && (
+        <TradeSheet
+          key={`${trade.side}-${trade.symbol ?? ""}`}
+          id={id}
+          intent={trade}
+          view={v}
+          playing={playing}
+          onClose={() => setTrade(null)}
+          onDone={async (msg) => {
+            setTrade(null);
+            setFlash(msg);
+            await load();
+          }}
+        />
+      )}
+
+      {/* טלפון: סרגל תחתון */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-card border-t border-line grid grid-cols-5 text-center pb-[env(safe-area-inset-bottom)]">
-        {MAIN.map((x) => (
-          <button key={x.k} onClick={() => goMain(x.k)} className={`pt-1.5 pb-2 text-[11px] relative ${active === x.k ? "text-brand font-bold" : "text-muted"}`}>
-            <span className="block text-lg leading-tight">{x.icon}</span>
-            {x.label}
-            {x.k === "history" && v.pending.length > 0 && <span className="absolute top-1 left-1/2 ms-2 w-2 h-2 rounded-full bg-warn" />}
-            {x.k === "more" && (journal?.dueCount ?? 0) > 0 && <span className="absolute top-1 left-1/2 ms-2 w-2 h-2 rounded-full bg-time" />}
-          </button>
-        ))}
+        {MAIN.map((x) => {
+          const on = x.k !== "learn" && activeMain === x.k;
+          return (
+            <button key={x.k} onClick={() => go(x.k)} className={`pt-2 pb-2 text-[11px] relative ${on ? "text-ink font-bold" : "text-muted"}`}>
+              <span className={`block text-xl leading-tight ${on ? "" : "grayscale opacity-60"}`}>{x.icon}</span>
+              {x.label}
+              {navBadge(x.k)}
+            </button>
+          );
+        })}
       </nav>
-    </>
+    </div>
   );
 }

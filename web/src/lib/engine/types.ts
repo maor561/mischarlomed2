@@ -72,6 +72,8 @@ export type Portfolio = {
   /** ישן. אחרי ההמרה תמיד null; התוכניות ב-plans */
   deposit: MonthlyDeposit | null;
   plans: Plan[];
+  /** רשימת מעקב: ניירות שעוקבים אחריהם בלי להחזיק */
+  watchlist: string[];
   createdAt: string;
   /** מכונת זמן: תאריך סיום המסע (null = עד היום) */
   endDate: string | null;

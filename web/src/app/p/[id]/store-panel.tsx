@@ -4,22 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import SymbolSearch from "@/components/symbol-search";
+import SymbolDot from "@/components/symbol-dot";
 import { api, dateHe, money } from "@/lib/format";
 import { LESSON_BY_N } from "@/lib/lessons/content";
 import type { StoreItem, StoreView } from "@/lib/store/store";
 
 const pct = (n: number | null) => (n == null ? "—" : `${n > 0 ? "+" : ""}${n.toFixed(1)}%`);
 const tone = (n: number | null) => (n == null ? "text-muted" : n >= 0 ? "text-up" : "text-down");
-
-/** לוגו פשוט: עיגול צבעוני עם האות הראשונה (בלי לוגו של החברה) */
-export function SymbolDot({ symbol, size = 36 }: { symbol: string; size?: number }) {
-  const hue = [...symbol].reduce((a, c) => a + c.charCodeAt(0) * 37, 0) % 360;
-  return (
-    <span className="inline-grid place-items-center rounded-full text-white font-bold shrink-0" style={{ width: size, height: size, background: `hsl(${hue} 60% 48%)`, fontSize: size * 0.42 }}>
-      {symbol[0]}
-    </span>
-  );
-}
 
 /**
  * החנות (חבילה 12): חיפוש, אוספים בקרוסלה, "הפעילים ביותר" ביום הסימולציה, ודף אוסף עם קנייה בחלוקה שווה.
@@ -61,12 +52,12 @@ export default function StorePanel({ id, version, onBought, onPlan }: { id: stri
                 <button
                   key={c.id}
                   onClick={() => setOpen(open === c.id ? null : c.id)}
-                  className={`snap-start shrink-0 w-40 h-44 rounded-2xl p-3 text-start text-white flex flex-col ${open === c.id ? "ring-4 ring-ink/30" : ""}`}
+                  className={`snap-start shrink-0 w-40 h-44 rounded-[22px] p-3 text-start text-ink flex flex-col ${open === c.id ? "ring-4 ring-ink/30" : ""}`}
                   style={{ background: c.color }}
                 >
                   <span className="text-3xl">{c.emoji}</span>
                   <b className="mt-auto text-lg leading-tight">{c.title}</b>
-                  <span className="text-xs opacity-90">{c.availableCount} ניירות · שנה <span className="num">{pct(c.yearPct)}</span></span>
+                  <span className="text-xs text-ink-2">{c.availableCount} ניירות · שנה <span className="num">{pct(c.yearPct)}</span></span>
                 </button>
               ))}
             </div>
@@ -81,7 +72,7 @@ export default function StorePanel({ id, version, onBought, onPlan }: { id: stri
                 <button key={x.symbol} onClick={() => goStock(x.symbol)} className="card shrink-0 w-32 text-start space-y-1 hover:border-brand">
                   <SymbolDot symbol={x.symbol} size={30} />
                   <b className="block num text-sm">{x.symbol}</b>
-                  <span className="block text-xs text-muted truncate">{x.name}</span>
+                  <span className="block text-xs text-muted truncate"><bdi>{x.name}</bdi></span>
                   <span className={`block text-sm num ${tone(x.dayPct)}`}>{pct(x.dayPct)}</span>
                 </button>
               ))}
@@ -141,7 +132,7 @@ function CollectionCard({ id, col, goStock, onBought, onPlan }: { id: string; co
             <SymbolDot symbol={x.symbol} />
             <span className="min-w-0 flex-1">
               <b className="num">{x.symbol}</b> <span className="text-xs text-muted">{x.kind === "ETF" ? "קרן סל" : "מניה"}</span>
-              <span className="block text-xs text-muted truncate">{x.name}</span>
+              <span className="block text-xs text-muted truncate"><bdi>{x.name}</bdi></span>
             </span>
             {x.available ? (
               <span className="text-end">

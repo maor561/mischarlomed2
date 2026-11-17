@@ -58,6 +58,8 @@ export async function stockPage(id: number, symbolIn: string) {
     currency: meta.currency,
     kind: meta.kind,
     live,
+    watched: p.watchlist.includes(meta.symbol),
+    mode: p.mode,
     asOf: end,
     price: round2(price),
     dayPct,

@@ -161,6 +161,9 @@ UPDATE portfolios SET plans = jsonb_build_array(jsonb_build_object(
   deposit = NULL
   WHERE deposit IS NOT NULL AND jsonb_typeof(deposit) = 'object';
 
+-- ===== גרסה 2, חבילה 13: רשימת מעקב (☆) =====
+ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS watchlist JSONB NOT NULL DEFAULT '[]';
+
 -- ===== חבילה 6: התקדמות בשיעורים (משתמש יחיד) =====
 CREATE TABLE IF NOT EXISTS lesson_progress (
   n            INTEGER PRIMARY KEY,

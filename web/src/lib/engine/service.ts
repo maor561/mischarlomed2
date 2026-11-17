@@ -25,7 +25,7 @@ function rowToPortfolio(r: R): Portfolio {
     id: Number(r.id), name: String(r.name), mode: r.mode as Portfolio["mode"],
     startDate: String(r.start_date), simDate: String(r.sim_date), processedThrough: String(r.processed_through),
     initialCapital: Number(r.initial_capital), fees: json<FeeProfile>(r.fees, FEE_PRESETS.online),
-    deposit: json<MonthlyDeposit | null>(r.deposit, null), plans: json<Plan[]>(r.plans, []), createdAt: String(r.created_at),
+    deposit: json<MonthlyDeposit | null>(r.deposit, null), plans: json<Plan[]>(r.plans, []), watchlist: json<string[]>(r.watchlist, []), createdAt: String(r.created_at),
     endDate: (r.end_date as string) ?? null, blind: Boolean(r.blind), periodName: (r.period_name as string) ?? null,
     benchmark: (r.benchmark as Benchmark) ?? "SPY", nav: Number(r.nav ?? 1), navPeak: Number(r.nav_peak ?? 1),
     lastValue: num(r.last_value), ddAlerted: Boolean(r.dd_alerted), lastMarketStop: (r.last_market_stop as string) ?? null,
@@ -53,7 +53,7 @@ function rowToEntry(r: R): LedgerEntry {
   };
 }
 
-const PF_COLS = `id,name,mode,start_date::text AS start_date,sim_date::text AS sim_date,processed_through::text AS processed_through,initial_capital,fees,deposit,plans,created_at::text AS created_at,
+const PF_COLS = `id,name,mode,start_date::text AS start_date,sim_date::text AS sim_date,processed_through::text AS processed_through,initial_capital,fees,deposit,plans,watchlist,created_at::text AS created_at,
   end_date::text AS end_date,blind,period_name,benchmark,nav,nav_peak,last_value,dd_alerted,last_market_stop::text AS last_market_stop`;
 const ORDER_COLS = `id,portfolio_id,created_d::text AS created_d,active_from::text AS active_from,live_today,side,symbol,currency,qty,budget,type,price,validity,expires_d::text AS expires_d,status,reason,filled_d::text AS filled_d,fill_price,fill_qty,reserved,why,exit_plan,source,splits_applied,tags,mentor`;
 const LEDGER_COLS = `id,portfolio_id,d::text AS d,kind,symbol,qty,price,cash_ils,cash_usd,fee,tax,fx_rate,order_id,meta`;
@@ -368,6 +368,19 @@ export async function deletePlan(id: number, planId: number) {
   return withLock(id, async () => {
     const p = await loadPortfolio(id);
     await savePlans(id, p.plans.filter((x) => x.id !== planId));
+  });
+}
+
+/** ☆ הוספה או הסרה מרשימת המעקב */
+export async function setWatch(id: number, symbolIn: string, on: boolean) {
+  const meta = await getInstrument(symbolIn);
+  if (!meta) throw new UserError("נייר לא נמצא");
+  return withLock(id, async () => {
+    const p = await loadPortfolio(id);
+    const list = p.watchlist.filter((s) => s !== meta.symbol);
+    if (on) list.unshift(meta.symbol);
+    await query(`UPDATE portfolios SET watchlist=$2::jsonb WHERE id=$1`, [id, JSON.stringify(list.slice(0, 30))]);
+    return list;
   });
 }
 

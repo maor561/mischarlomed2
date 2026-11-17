@@ -24,7 +24,7 @@ export type StoreItem = {
   turnoverUsd: number;
 };
 
-async function itemInfo(symbol: string, end: string, fx: number): Promise<StoreItem | null> {
+export async function itemInfo(symbol: string, end: string, fx: number): Promise<StoreItem | null> {
   const meta = await getInstrument(symbol);
   if (!meta) return null;
   const bars = await getHistory(meta.symbol, { from: addDays(end, -372), to: end, asTraded: true });
@@ -74,6 +74,19 @@ export async function storeView(id: number) {
   return { asOf: end, collections, active };
 }
 export type StoreView = Awaited<ReturnType<typeof storeView>>;
+
+/** רשימת המעקב עם מחיר ושינוי יומי ביום הסימולציה */
+export async function watchView(id: number): Promise<StoreItem[]> {
+  const p = await loadPortfolio(id);
+  const end = p.mode === "live" ? todayIL() : p.simDate;
+  const fx = (await priceOn(USD_ILS, end))?.close ?? 3.7;
+  const out: StoreItem[] = [];
+  for (const s of p.watchlist) {
+    const it = await itemInfo(s, end, fx).catch(() => null);
+    if (it) out.push(it);
+  }
+  return out;
+}
 
 /** קנייה של אוסף שלם לפי סכום בשקלים, בחלוקה שווה בין הניירות שזמינים ביום הסימולציה */
 export async function buyCollection(id: number, collectionId: string, amount: number) {
