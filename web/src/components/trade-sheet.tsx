@@ -89,7 +89,12 @@ export default function TradeSheet({ id, intent, view, playing, onClose, onDone 
 
   const held = q?.held ?? view?.positions.find((p) => p.symbol === symbol)?.qty ?? 0;
   const amountLabel = mode === "all" ? "כל ההחזקה" : mode === "qty" ? `${value} מניות` : money(num, ccy, num % 1 ? 2 : 0);
-  const cashAll = view ? Math.floor(view.totals.cashIls * 0.99) : 0;
+  // "הכול": מה שזמין להשקעה, פחות מרווח קטן לעמלות
+  const available = view?.totals.availableIls ?? null;
+  const cashAll = available ? Math.floor(available * 0.99) : 0;
+  const fxRate = q?.fx ?? view?.fx ?? 0;
+  const wantIls = mode === "amount" ? (ccy === "USD" ? num * fxRate : num) : (q?.total ?? 0) * (q?.currency === "USD" ? fxRate : 1);
+  const over = side === "buy" && available != null && wantIls > available + 0.5;
   const notes = q?.mentor.notes ?? [];
   const block = !q || !!qErr || !!q.minErr || q.shortfall > 0 || why.trim().length < 3 || playing || busy || (orderType !== "market" && !orderPrice);
 
@@ -169,6 +174,11 @@ export default function TradeSheet({ id, intent, view, playing, onClose, onDone 
                 </div>
               )}
               {q && mode !== "qty" && <div className="text-[13px] text-muted mt-1">{side === "buy" ? "תקבל" : "תמכור"} בערך <b className="num text-ink">{fmtQty(q.qty)}</b> מניות</div>}
+              {side === "buy" && available != null && (
+                <div className={`text-[13px] mt-1 ${over ? "text-down font-semibold" : "text-ink-2"}`}>
+                  💵 זמין להשקעה: <b className="num">{money(available, "ILS", 0)}</b>{over && " · הסכום גבוה מהזמין"}
+                </div>
+              )}
               {q && mode === "qty" && <div className="text-[13px] text-muted mt-1">בערך <b className="num text-ink">{money(q.total, q.currency)}</b></div>}
             </div>
 

@@ -79,6 +79,7 @@ export default function HomePanel({ id, view: v, version, journal, onTrade, onTa
               · <span className={`num ${tone(t.pnl)}`}>{pct(t.pnlPct)}</span> מההתחלה (<span className="num">{signed(t.pnl, "ILS", 0)}</span>)
             </span>
           </div>
+          <AvailableCard available={t.availableIls} reserved={t.reservedIls} onInvest={() => onTrade({ side: "buy" })} />
           <Spark points={pts} />
           <div className="seg mt-1">
             {RANGES.map((r) => (
@@ -130,8 +131,11 @@ export default function HomePanel({ id, view: v, version, journal, onTrade, onTa
               <div className="flex items-center gap-2.5 py-2.5 border-t border-line">
                 <span className="w-[38px] text-center text-xl">💵</span>
                 <span className="flex-1">
-                  <b className="block text-sm">מזומן פנוי</b>
-                  <span className="text-xs text-muted">{advanced ? <span className="num">{money(v.cash.ILS, "ILS", 0)} + {money(v.cash.USD, "USD", 0)}</span> : "שקלים ודולרים יחד. ההמרה בקנייה אוטומטית"}</span>
+                  <b className="block text-sm">מזומן</b>
+                  <span className="text-xs text-muted">
+                    {t.reservedIls > 0 ? <>מתוכו <span className="num">{money(t.availableIls, "ILS", 0)}</span> זמין להשקעה</> : "כולו זמין להשקעה"}
+                    {advanced && <> · <span className="num">{money(v.cash.ILS, "ILS", 0)} + {money(v.cash.USD, "USD", 0)}</span></>}
+                  </span>
                 </span>
                 <b className="num text-sm">{money(t.cashIls, "ILS", 0)}</b>
               </div>
@@ -169,6 +173,23 @@ export default function HomePanel({ id, view: v, version, journal, onTrade, onTa
         </div>
       </div>
     </div>
+  );
+}
+
+/** כמה כסף אפשר להשקיע עכשיו: מזומן פחות מה ששמור לפקודות ממתינות (שקלים ודולרים יחד) */
+function AvailableCard({ available, reserved, onInvest }: { available: number; reserved: number; onInvest: () => void }) {
+  return (
+    <button onClick={onInvest} className="w-full mt-3 flex items-center gap-3 rounded-[18px] bg-sun-soft px-3.5 py-2.5 text-start">
+      <span className="text-2xl">💵</span>
+      <span className="flex-1 min-w-0">
+        <span className="block text-xs text-ink-2">זמין להשקעה עכשיו</span>
+        <b className="block text-2xl font-extrabold num leading-tight">{money(available, "ILS", 0)}</b>
+        <span className="block text-[11px] text-muted">
+          {reserved > 0 ? <>עוד <span className="num">{money(reserved, "ILS", 0)}</span> שמורים לפקודות שממתינות לביצוע</> : "שקלים ודולרים יחד. ההמרה בקנייה אוטומטית"}
+        </span>
+      </span>
+      <span className="pill bg-sun text-ink shrink-0">להשקיע ←</span>
+    </button>
   );
 }
 

@@ -788,6 +788,9 @@ export async function view(id: number) {
     const ledger = await loadLedger(id);
     const deposited = round2(ledger.filter((e) => e.kind === "deposit").reduce((a, e) => a + e.cashIls, 0));
     const total = round2(holdingsIls + cashIls);
+    // זמין להשקעה: מזומן פחות מה ששמור לפקודות קנייה ממתינות, שקלים ודולרים יחד (בשקלים)
+    const reservedIls = round2(reserved.ILS + reserved.USD * fx);
+    const availableIls = round2(Math.max(0, s.cash.ILS - reserved.ILS) + Math.max(0, s.cash.USD - reserved.USD) * fx);
 
     // מס לפי שנה
     const years = [...s.years.entries()].sort((a, b) => b[0] - a[0]).map(([y, t]) => ({
@@ -811,7 +814,7 @@ export async function view(id: number) {
       cash: s.cash,
       reserved,
       positions,
-      totals: { holdingsIls, cashIls, total, deposited, pnl: round2(total - deposited), pnlPct: deposited ? round2(((total - deposited) / deposited) * 100) : 0 },
+      totals: { holdingsIls, cashIls, availableIls, reservedIls, total, deposited, pnl: round2(total - deposited), pnlPct: deposited ? round2(((total - deposited) / deposited) * 100) : 0 },
       pending: pendingAll,
       history: ledger.reverse(),
       orders: (await loadOrders(id, false)).filter((o) => o.status !== "pending").slice(0, 200),
