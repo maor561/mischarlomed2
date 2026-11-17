@@ -59,7 +59,7 @@ export default function TradeSheet({ id, intent, view, playing, onClose, onDone 
         setQ(await api<QuoteForOrder>(`/api/portfolios/${id}/quote`, { method: "POST", json: { ...sizing(), side, symbol, type: orderType, price: orderPrice, why } }));
         setQErr("");
       } catch (e) {
-        setQ(null);
+        // משאירים את ההערכה הקודמת על המסך, כדי שהחלון לא "יקפוץ"
         setQErr((e as Error).message);
       }
     }, 300);
@@ -173,13 +173,13 @@ export default function TradeSheet({ id, intent, view, playing, onClose, onDone 
                   <button aria-pressed={ccy === "USD"} onClick={() => setCcy("USD")}>$</button>
                 </div>
               )}
-              {q && mode !== "qty" && <div className="text-[13px] text-muted mt-1">{side === "buy" ? "תקבל" : "תמכור"} בערך <b className="num text-ink">{fmtQty(q.qty)}</b> מניות</div>}
-              {side === "buy" && available != null && (
-                <div className={`text-[13px] mt-1 ${over ? "text-down font-semibold" : "text-ink-2"}`}>
-                  💵 זמין להשקעה: <b className="num">{money(available, "ILS", 0)}</b>{over && " · הסכום גבוה מהזמין"}
-                </div>
-              )}
-              {q && mode === "qty" && <div className="text-[13px] text-muted mt-1">בערך <b className="num text-ink">{money(q.total, q.currency)}</b></div>}
+              {/* שורות קבועות: רק הטקסט משתנה בזמן ההקלדה, לא הגובה */}
+              <div className="text-[13px] text-muted mt-1 h-5">
+                {mode === "qty" ? <>בערך <b className="num text-ink">{q ? money(q.total, q.currency) : "…"}</b></> : <>{side === "buy" ? "תקבל" : "תמכור"} בערך <b className="num text-ink">{q ? fmtQty(q.qty) : "…"}</b> מניות</>}
+              </div>
+              <div className={`text-[13px] mt-0.5 h-5 ${over ? "text-down font-semibold" : "text-ink-2"}`}>
+                {side === "buy" ? <>💵 זמין להשקעה: <b className="num">{available != null ? money(available, "ILS", 0) : "…"}</b>{over && " · הסכום גבוה מהזמין"}</> : <>מחזיק <b className="num">{fmtQty(held)}</b> {q ? <>· שווי <span className="num">{money(held * q.refPrice, q.currency)}</span></> : ""}</>}
+              </div>
             </div>
 
             {mode === "amount" && side === "buy" && ccy === "ILS" && (
@@ -191,22 +191,21 @@ export default function TradeSheet({ id, intent, view, playing, onClose, onDone 
               </div>
             )}
 
-            {q && (
-              <div className="text-xs bg-soft rounded-[14px] px-3 py-2 space-y-1">
-                {q.fxPlan && (
-                  <div className="flex justify-between"><span>המרה לדולרים (אוטומטית)</span><span className="num">{money(q.fxPlan.amount, q.fxPlan.from)} → {money(q.fxPlan.received, q.fxPlan.to)}</span></div>
-                )}
-                <div className="flex justify-between">
-                  <span>עמלה</span>
-                  {q.fee === 0 ? (
-                    <span className="text-up font-semibold">חינם{q.freeLeft && q.currency === "USD" ? ` · נשארו ${q.freeLeft.actions} פעולות חינם החודש` : ""}</span>
-                  ) : (
-                    <span className="num">{money(q.fee, q.currency)}</span>
-                  )}
-                </div>
-                <div className={`flex justify-between ${q.marketOpen ? "text-up" : "text-time"}`}><span>{q.marketOpen ? "🟢 המסחר פתוח" : "🌙 תתבצע בפתיחה הבאה"}</span></div>
+            <div className="text-xs bg-soft rounded-[14px] px-3 py-2 space-y-1">
+              <div className="flex justify-between h-4">
+                <span>המרת מטבע</span>
+                <span className="num">{!q ? "…" : q.fxPlan ? `${money(q.fxPlan.amount, q.fxPlan.from)} → ${money(q.fxPlan.received, q.fxPlan.to)} (אוטומטית)` : "לא צריך"}</span>
               </div>
-            )}
+              <div className="flex justify-between h-4">
+                <span>עמלה</span>
+                {!q ? <span>…</span> : q.fee === 0 ? (
+                  <span className="text-up font-semibold">חינם{q.freeLeft && q.currency === "USD" ? ` · נשארו ${q.freeLeft.actions} פעולות חינם החודש` : ""}</span>
+                ) : (
+                  <span className="num">{money(q.fee, q.currency)}</span>
+                )}
+              </div>
+              <div className={`h-4 ${!q ? "" : q.marketOpen ? "text-up" : "text-time"}`}>{!q ? "…" : q.marketOpen ? "🟢 המסחר פתוח" : "🌙 תתבצע בפתיחה הבאה"}</div>
+            </div>
 
             {advanced && (
               <div className="rounded-[14px] border border-line p-2.5 space-y-2">
@@ -228,28 +227,37 @@ export default function TradeSheet({ id, intent, view, playing, onClose, onDone 
 
             <input className="input text-[13px]" value={why} onChange={(e) => setWhy(e.target.value)} placeholder={side === "buy" ? "✍️ למה? (במשפט אחד, נחזור לזה ביומן)" : "✍️ למה מוכרים? (במשפט אחד)"} />
 
-            {qErr && <div className="text-sm rounded-xl p-2.5 bg-down-soft text-down">{withDates(qErr)}</div>}
-            {q?.minErr && <div className="text-sm rounded-xl p-2.5 bg-down-soft text-down">{q.minErr}</div>}
-            {q && q.shortfall > 0 && (
-              <div className="text-sm rounded-xl p-2.5 bg-warn-soft text-[#6b4100]">
-                {side === "buy" ? <>חסרים <b className="num">{money(q.shortfall, q.fxShortCcy ?? q.currency)}</b> בקופה.</> : <>יש לך רק {fmtQty(q.available)} מניות פנויות.</>}
-              </div>
-            )}
-            {err && <div className="text-sm rounded-xl p-2.5 bg-down-soft text-down">{withDates(err)}</div>}
+            {/* הודעה אחת בגובה קבוע: החשובה ביותר מוצגת */}
+            <Message
+              msg={
+                err ? { t: withDates(err), bad: true }
+                : qErr ? { t: withDates(qErr), bad: true }
+                : q?.minErr ? { t: q.minErr, bad: true }
+                : q && q.shortfall > 0 ? { t: side === "buy" ? `חסרים ${money(q.shortfall, q.fxShortCcy ?? q.currency)} בקופה` : `יש לך רק ${fmtQty(q.available)} מניות פנויות`, bad: true }
+                : playing ? { t: "⏸ עצור את מכונת הזמן כדי לשלוח פקודה" }
+                : why.trim().length < 3 ? { t: "כדי לשלוח, כתוב במשפט אחד למה" }
+                : mode !== "qty" ? { t: "הכמות הסופית נקבעת בביצוע, לפי המחיר בפועל" }
+                : null
+              }
+            />
 
             {mode !== "all" && <Keypad value={value} onChange={setValue} maxDecimals={mode === "qty" ? 6 : 2} />}
 
             <button className={side === "buy" ? "btn w-full !py-3" : "btn w-full !py-3 !bg-down"} disabled={block} onClick={() => (notes.length ? setStep("confirm") : submit())}>
               {busy ? "שולח…" : side === "buy" ? `להשקיע ${amountLabel}` : `למכור ${amountLabel}`}
             </button>
-            {playing && <p className="text-xs text-time text-center">⏸ עצור את מכונת הזמן כדי לשלוח פקודה.</p>}
-            {!playing && q && why.trim().length < 3 && <p className="text-xs text-muted text-center">כדי לשלוח, כתוב במשפט אחד למה.</p>}
-            {q && mode !== "qty" && q.refPrice > 0 && (
-              <p className="text-[11px] text-muted text-center">הכמות הסופית נקבעת בביצוע, לפי המחיר בפועל.</p>
-            )}
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/** שורת הודעה בגובה קבוע (שתי שורות), כדי שהחלון לא יזוז כשהודעה מופיעה או נעלמת */
+function Message({ msg }: { msg: { t: string; bad?: boolean } | null }) {
+  return (
+    <div className={`min-h-[2.5rem] text-[13px] rounded-xl px-3 py-1.5 flex items-center justify-center text-center leading-snug ${msg?.bad ? "bg-down-soft text-down" : "text-muted"}`}>
+      <span className="line-clamp-2">{msg?.t ?? ""}</span>
     </div>
   );
 }

@@ -164,6 +164,9 @@ UPDATE portfolios SET plans = jsonb_build_array(jsonb_build_object(
 -- ===== גרסה 2, חבילה 13: רשימת מעקב (☆) =====
 ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS watchlist JSONB NOT NULL DEFAULT '[]';
 
+-- גרסת המבנה: בעלייה בענן מריצים את כל הפקודות רק כשהמבנה השתנה
+CREATE TABLE IF NOT EXISTS app_meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
+
 -- ===== חבילה 6: התקדמות בשיעורים (משתמש יחיד) =====
 CREATE TABLE IF NOT EXISTS lesson_progress (
   n            INTEGER PRIMARY KEY,
@@ -185,6 +188,13 @@ CREATE TABLE IF NOT EXISTS instrument_info (
 
 let queryFn: Promise<QueryFn> | null = null;
 
+/** טביעת אצבע של המבנה (djb2), כדי לדעת אם צריך להריץ אותו שוב */
+const SCHEMA_HASH = (() => {
+  let h = 5381;
+  for (let i = 0; i < SCHEMA.length; i++) h = ((h << 5) + h + SCHEMA.charCodeAt(i)) | 0;
+  return String(h >>> 0);
+})();
+
 async function init(): Promise<QueryFn> {
   const url = process.env.DATABASE_URL;
   let q: QueryFn;
@@ -195,9 +205,13 @@ async function init(): Promise<QueryFn> {
     txFn = async (stmts) => {
       await sql.transaction(stmts.map((s) => sql.query(s.text, s.params)));
     };
-    // Neon HTTP מריץ פקודה אחת בכל קריאה
-    for (const stmt of SCHEMA.split(";").map((s) => s.trim()).filter(Boolean)) {
-      await q(stmt);
+    // Neon HTTP מריץ פקודה אחת בכל קריאה, ולכן ~45 נסיעות ברשת. מדלגים כשהמבנה לא השתנה
+    const current = await q(`SELECT v FROM app_meta WHERE k='schema'`).catch(() => []);
+    if (current[0]?.v !== SCHEMA_HASH) {
+      for (const stmt of SCHEMA.split(";").map((s) => s.trim()).filter(Boolean)) {
+        await q(stmt);
+      }
+      await q(`INSERT INTO app_meta (k,v) VALUES ('schema',$1) ON CONFLICT (k) DO UPDATE SET v=$1`, [SCHEMA_HASH]);
     }
   } else {
     const { PGlite } = await import("@electric-sql/pglite");
@@ -227,7 +241,11 @@ async function init(): Promise<QueryFn> {
   return q;
 }
 
+/** מונה שאילתות (לאבחון ביצועים: כל שאילתה בענן היא נסיעה ברשת ל-Neon) */
+export const sqlStats = { n: 0 };
+
 export async function query<T = Row>(text: string, params: unknown[] = []): Promise<T[]> {
+  sqlStats.n++;
   queryFn ??= init().catch((e) => {
     queryFn = null;
     throw e;

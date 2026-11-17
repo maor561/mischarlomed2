@@ -5,7 +5,7 @@
 import { addDays, round2, todayIL } from "../engine/money";
 import { loadPortfolio, placeOrder, UserError } from "../engine/service";
 import type { Order } from "../engine/types";
-import { getHistory, getInstrument, isCached, priceOn, USD_ILS } from "../market";
+import { ensureHistory, getHistory, getInstrument, priceOn, USD_ILS, windowBars, type Bar, type InstrumentMeta } from "../market";
 import { COLLECTIONS, collectionById, NAMES } from "./collections";
 
 export type StoreItem = {
@@ -26,10 +26,8 @@ export type StoreItem = {
   turnoverUsd: number;
 };
 
-export async function itemInfo(symbol: string, end: string, fx: number): Promise<StoreItem | null> {
-  const meta = await getInstrument(symbol);
-  if (!meta) return null;
-  const bars = await getHistory(meta.symbol, { from: addDays(end, -372), to: end, asTraded: true });
+/** חישוב פריט מהנתונים (בלי גישה למסד) */
+function itemFrom(meta: InstrumentMeta, bars: Bar[], end: string, fx: number): StoreItem {
   const last = bars.at(-1);
   const started = !meta.firstTrade || meta.firstTrade <= end;
   const available = started && !!last && last.d >= addDays(end, -10);
@@ -45,6 +43,12 @@ export async function itemInfo(symbol: string, end: string, fx: number): Promise
     yearPct: available && fullYear ? round2((last!.close / yearAgo!.close - 1) * 100) : null,
     turnoverUsd: meta.currency === "ILS" ? turnover / fx : turnover,
   };
+}
+
+export async function itemInfo(symbol: string, end: string, fx: number): Promise<StoreItem | null> {
+  const meta = await getInstrument(symbol);
+  if (!meta) return null;
+  return itemFrom(meta, await getHistory(meta.symbol, { from: addDays(end, -372), to: end, asTraded: true }), end, fx);
 }
 
 /** מריץ במנות קטנות, כדי לא להציף את Yahoo בטעינה הראשונה */
@@ -69,10 +73,13 @@ export async function storeView(id: number, collectionId?: string | null) {
   const pick = collectionId ? collectionById(collectionId) : null;
   const info = new Map<string, StoreItem>();
   const symbols = pick ? pick.symbols : [...new Set(COLLECTIONS.flatMap((c) => c.symbols))];
-  await inChunks(symbols, pick ? 4 : 8, async (s) => {
-    const it = pick || (await isCached(s)) ? await itemInfo(s, end, fx).catch(() => null) : null;
-    info.set(s, it ?? placeholder(s));
-  });
+  // אוסף שנפתח: מורידים מהספק רק את מה שחסר. אחר כך הכול ב-3 שאילתות
+  if (pick) await inChunks(symbols, 4, async (s) => void (await ensureHistory(s).catch(() => {})));
+  const data = await windowBars(symbols, addDays(end, -372), end);
+  for (const s of symbols) {
+    const d = data.get(s);
+    info.set(s, d ? itemFrom(d.meta, d.bars, end, fx) : placeholder(s));
+  }
   const collections = (pick ? [pick] : COLLECTIONS).map((c) => {
     const items = c.symbols.map((s) => info.get(s) ?? placeholder(s));
     const loaded = items.every((x) => x.loaded);
