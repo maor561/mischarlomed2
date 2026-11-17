@@ -207,7 +207,7 @@ export async function journeyReport(id: number) {
   const whatIf = [
     ...(panic ? [{ text: `לא היית מוכר את ${panic.symbol} ב-${panic.d}, כשהשוק היה ${Math.abs(panic.marketFromPeak).toFixed(0)}% מתחת לשיא`, ils: panic.missedIls }] : []),
     { text: `היית רק קונה את ${series.benchLabel} בכל הפקדה ולא נוגע`, ils: round2(series.final.bench - series.final.value) },
-    ...(p.fees.kind !== "bank" ? [{ text: "היית בבנק במקום בברוקר אונליין (הערכה)", ils: -round2(bankFees - tradeFeesOnly) }] : []),
+    ...(p.fees.kind !== "bank" ? [{ text: p.fees.app ? "היית בבנק במקום באפליקציה (הערכה)" : "היית בבנק במקום בברוקר אונליין (הערכה)", ils: -round2(bankFees - tradeFeesOnly) }] : []),
   ];
 
   // שלוש תובנות לפי כללים קבועים (בחבילה 5 המנטור יכתוב אותן)

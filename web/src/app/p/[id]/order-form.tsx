@@ -192,6 +192,12 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
           <>
             <Row k={`${fmtQty(q.qty)} × ${money(type === "market" || price === "" ? q.refPrice : Number(price), ccy)}`} v={money(q.gross, ccy)} />
             <Row k="עמלה" v={money(q.fee, ccy)} />
+            {q.freeLeft && ccy === "USD" && (
+              <p className="text-xs text-muted">
+                📱 נשארו החודש <b className="num">{q.freeLeft.actions}</b> פעולות חינם ו-<span className="num">{q.freeLeft.shares.toLocaleString("he-IL", { maximumFractionDigits: 2 })}</span> מניות חינם.
+                {q.fee > 0 && " העסקה הזאת כבר מעבר למכסה."}
+              </p>
+            )}
             <Row k={side === "buy" ? "ירד מהקופה (הערכה)" : "ייכנס לקופה לפני מס (הערכה)"} v={money(q.total, ccy)} bold />
             {ccy === "USD" && <Row k="בשקלים" v={money(q.total * q.fx, "ILS")} />}
             {q.fxPlan && (

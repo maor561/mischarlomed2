@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { api, dateHe, money } from "@/lib/format";
 import type { Portfolio } from "@/lib/engine/types";
 
-const FEE_HE = { bank: "🏦 בנק", online: "💻 ברוקר אונליין", custom: "✏️ מותאם" };
+const FEE_HE = { bank: "🏦 בנק", online: "💻 ברוקר אונליין", app: "📱 אפליקציה", custom: "✏️ מותאם" };
 
 export default function PortfolioList() {
   const [list, setList] = useState<Portfolio[] | null>(null);

@@ -6,8 +6,8 @@ import { query, tx, type Stmt } from "../db";
 import { dividends as getDividends, getHistory, getInstrument, getQuote, splits as getSplits, USD_ILS, type LiveQuote } from "../market";
 import { GTC_DAYS, addDays, convert, round2, todayIL, toIls, tradeFee } from "./money";
 import { availableCash, estimate, fill, makeCtx, processDay, processLive, processRange, push, roundQ, triggerOnPrice, validateInput, type Ctx, type Estimate, type OrderInput } from "./process";
-import { carryLossInto, replay, type State } from "./state";
-import { BENCH, FEE_PRESETS, type Bar, type Benchmark, type Ccy, type FeeProfile, type LedgerEntry, type Market, type MonthlyDeposit, type Order, type Portfolio } from "./types";
+import { carryLossInto, monthUsage, replay, type State } from "./state";
+import { BENCH, FEE_PRESETS, type Bar, type Benchmark, type Ccy, type FeeProfile, type LedgerEntry, type Market, type MonthlyDeposit, type MonthUsage, type Order, type Portfolio } from "./types";
 import { CALM, EVENTS, STORMY } from "../timemachine/events";
 import { getInfo, sectorHe } from "../market/info";
 import { mentorOnOrder, type MentorNote, type ReasonTag } from "../mentor/rules";
@@ -338,6 +338,11 @@ async function refQuote(L: Loaded, symbol: string) {
   return { price: q.price, open: si.open, beforeOpen: si.beforeOpen, note };
 }
 
+/** כמה פעולות ומניות חינם נשארו החודש (רק בפרופיל אפליקציה) */
+export function freeLeftOf(fees: FeeProfile, u: MonthUsage) {
+  return fees.app ? { actions: Math.max(0, fees.app.freeActions - u.actions), shares: Math.max(0, roundQ(fees.app.freeShares - u.shares)) } : null;
+}
+
 export type QuoteForOrder = Estimate & {
   symbol: string; name: string; marketOpen: boolean; note: string; simDate: string; fx: number; held: number;
   /** כמה מניות צפוי לקבל (בקנייה לפי סכום) או למכור */
@@ -346,6 +351,8 @@ export type QuoteForOrder = Estimate & {
   /** אם חסר כסף במטבע המקור של ההמרה */
   fxShortCcy: Ccy | null;
   minErr: string | null;
+  /** פרופיל אפליקציה: כמה נשאר מהמכסה החינמית בחודש הסימולציה */
+  freeLeft: { actions: number; shares: number } | null;
   mentor: { tags: ReasonTag[]; notes: MentorNote[] };
 };
 
@@ -433,6 +440,7 @@ export async function quoteForOrder(id: number, input: Pick<OrderInput, "side" |
     return {
       ...pr.est, symbol: meta.symbol, name: meta.name, marketOpen: ref.open, note: ref.note, simDate: L.p.simDate,
       fx: pr.fx, held: L.s.positions.get(meta.symbol)?.qty ?? 0, fxPlan: pr.fxPlan, fxShortCcy: pr.fxShortCcy, minErr: pr.minErr,
+      freeLeft: freeLeftOf(L.p.fees, monthUsage(L.s, L.p.simDate)),
       mentor: mentorFor(L, meta.kind, { side: input.side, symbol: meta.symbol, why: input.why ?? "", exitPlan: input.exitPlan ?? null }, pr.est),
     };
   });

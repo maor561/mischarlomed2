@@ -3,7 +3,7 @@
  * המנוע משתמש באותה פונקציית apply גם כשהוא מוסיף רשומה חדשה, כך שאין שתי דרכי חישוב.
  */
 import { TAX_RATE, round2 } from "./money";
-import type { Ccy, LedgerEntry } from "./types";
+import type { Ccy, LedgerEntry, MonthUsage } from "./types";
 
 export type Lot = { qty: number; costCcy: number; costIls: number; d: string };
 export type Position = { symbol: string; currency: Ccy; qty: number; lots: Lot[] };
@@ -16,12 +16,21 @@ export type State = {
   costs: { trade: number; fx: number; custody: number };
   /** אירועים שכבר עובדו (פיצול/דיבידנד/הפקדה/משמרת), כדי שעיבוד חוזר לא יכפיל */
   done: Set<string>;
+  /** מכסת עמלות חודשית (D31): כמה פעולות ומניות נסחרו בכל חודש, "YYYY-MM" */
+  months: Map<string, MonthUsage>;
 };
+
+export const monthUsage = (s: State, d: string): MonthUsage => s.months.get(d.slice(0, 7)) ?? { actions: 0, shares: 0 };
+
+function countTrade(s: State, d: string, qty: number) {
+  const u = monthUsage(s, d);
+  s.months.set(d.slice(0, 7), { actions: u.actions + 1, shares: Math.round((u.shares + Math.abs(qty)) * 1e6) / 1e6 });
+}
 
 export const eventKey = (kind: string, symbol: string | null, d: string) => `${kind}:${symbol ?? ""}:${d}`;
 
 export function emptyState(): State {
-  return { cash: { ILS: 0, USD: 0 }, positions: new Map(), years: new Map(), costs: { trade: 0, fx: 0, custody: 0 }, done: new Set() };
+  return { cash: { ILS: 0, USD: 0 }, positions: new Map(), years: new Map(), costs: { trade: 0, fx: 0, custody: 0 }, done: new Set(), months: new Map() };
 }
 
 function year(s: State, d: string): YearTax {
@@ -86,6 +95,7 @@ export function apply(s: State, e: LedgerEntry): void {
       pos.lots.push({ qty: e.qty, costCcy, costIls: e.fxRate ? costCcy * e.fxRate : costCcy, d: e.d });
       pos.qty = Math.round((pos.qty + e.qty) * 1e6) / 1e6;
       s.costs.trade += e.fee;
+      countTrade(s, e.d, e.qty);
       break;
     }
     case "sell": {
@@ -107,6 +117,7 @@ export function apply(s: State, e: LedgerEntry): void {
       t.realized = round2(t.realized + Number(e.meta.gainIls ?? 0));
       t.taxPaid = round2(t.taxPaid + e.tax);
       s.costs.trade += e.fee;
+      countTrade(s, e.d, e.qty);
       break;
     }
     case "dividend":

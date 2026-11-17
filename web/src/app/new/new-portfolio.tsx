@@ -15,7 +15,17 @@ const PRESETS = [
   { label: "10 שנים רגילות · 2014", d: "2014-01-02", hint: "עשור טוב יחסית. מתאים לתרגול הוראת קבע לטווח ארוך" },
 ];
 
-const FEE_ROWS: { k: keyof Omit<FeeProfile, "kind">; label: string; unit: string }[] = [
+type NumFee = Exclude<keyof FeeProfile, "kind" | "app">;
+type AppKey = keyof NonNullable<FeeProfile["app"]>;
+/** תמחור אפליקציה: מכסה חינמית ואז לפי מניה (D31) */
+const APP_ROWS: { k: AppKey; label: string; unit: string }[] = [
+  { k: "freeActions", label: "פעולות חינם בחודש", unit: "" },
+  { k: "freeShares", label: "מניות חינם בחודש", unit: "" },
+  { k: "perShare", label: "אחרי המכסה: למניה או חלק ממנה", unit: "$" },
+  { k: "min", label: "מינימום לעסקה בתשלום", unit: "$" },
+  { k: "maxPct", label: "תקרה מהעסקה", unit: "%" },
+];
+const FEE_ROWS: { k: NumFee; label: string; unit: string }[] = [
   { k: "usPct", label: "עמלת קנייה/מכירה בארה\"ב", unit: "%" },
   { k: "usMin", label: "מינימום לעסקה בארה\"ב", unit: "$" },
   { k: "ilPct", label: "עמלת קנייה/מכירה בת\"א", unit: "%" },
@@ -59,7 +69,7 @@ function NewPortfolio() {
   const [blind, setBlind] = useState<null | "stormy" | "calm" | "any">(blindInit);
   const [length, setLength] = useState<(typeof LENGTHS)[number]["k"]>(LENGTHS.some((l) => l.k === lenParam) ? (lenParam as (typeof LENGTHS)[number]["k"]) : "2y");
   const [benchmark, setBenchmark] = useState<"SPY" | "TA125">(sp.get("bench") === "TA125" ? "TA125" : "SPY");
-  const [fees, setFees] = useState<FeeProfile>({ ...FEE_PRESETS.online });
+  const [fees, setFees] = useState<FeeProfile>({ ...FEE_PRESETS.app });
   const [depOn, setDepOn] = useState(depParam > 0);
   const [dep, setDep] = useState({ amount: depParam || 1000, day: 1, autoBuy: (sp.get("auto") ?? (depParam ? null : "VOO")) as string | null });
   const [busy, setBusy] = useState(false);
@@ -174,14 +184,34 @@ function NewPortfolio() {
 
         <div className="card space-y-3">
           <h3 className="font-semibold">2. מבנה עמלות</h3>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <Opt on={fees.kind === "app"} onClick={() => pickFees("app")} title="📱 אפליקציה" sub="10 פעולות בחודש חינם" />
             <Opt on={fees.kind === "bank"} onClick={() => pickFees("bank")} title="🏦 בנק" sub="יקר, הכי נפוץ" />
             <Opt on={fees.kind === "online"} onClick={() => pickFees("online")} title="💻 אונליין" sub="זול, בלי משמרת" />
             <Opt on={fees.kind === "custom"} onClick={() => pickFees("custom")} title="✏️ מותאם" sub="מההצעה שקיבלת" />
           </div>
           <table className="w-full text-sm">
             <tbody>
-              {FEE_ROWS.map((r) => (
+              {fees.app &&
+                APP_ROWS.map((r) => (
+                  <tr key={r.k} className="border-b border-line">
+                    <td className="py-1.5">{r.label}</td>
+                    <td className="py-1.5 w-32">
+                      <div className="flex items-center gap-1">
+                        <input
+                          className="input num py-1"
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          value={fees.app![r.k]}
+                          onChange={(e) => setFees({ ...fees, kind: "custom", app: { ...fees.app!, [r.k]: Number(e.target.value) } })}
+                        />
+                        <span className="text-muted w-4">{r.unit}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              {FEE_ROWS.filter((r) => !(fees.app && (r.k === "usPct" || r.k === "usMin"))).map((r) => (
                 <tr key={r.k} className="border-b border-line">
                   <td className="py-1.5">{r.label}</td>
                   <td className="py-1.5 w-32">
@@ -202,6 +232,7 @@ function NewPortfolio() {
             </tbody>
           </table>
           <p className="text-xs text-muted">
+            {fees.app && <>באפליקציה: עד 10 פעולות או 1,000 מניות בחודש בלי עמלה (המוקדם מביניהם), לפי חודש הסימולציה. עמלת ההמרה שלהם לא פורסמה, ולכן 0.5% היא הנחה. </>}
             מספרים טיפוסיים להמחשה. שינוי של ערך הופך את הפרופיל ל&quot;מותאם&quot;. כשתקבל הצעה מבנק או מברוקר, הקלד כאן את המספרים שלה.
           </p>
 

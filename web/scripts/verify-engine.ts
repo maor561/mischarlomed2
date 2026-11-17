@@ -7,7 +7,7 @@
 import { FEE_PRESETS, type Bar, type Market, type Order, type Portfolio } from "../src/lib/engine/types";
 import { makeCtx, processRange, triggerOnBar, estimate, type Ctx } from "../src/lib/engine/process";
 import { emptyState, apply } from "../src/lib/engine/state";
-import { addDays } from "../src/lib/engine/money";
+import { addDays, tradeFee } from "../src/lib/engine/money";
 
 let fail = 0;
 function check(name: string, ok: boolean, detail = "") {
@@ -154,6 +154,24 @@ function partA() {
   const c8 = ctxWith(m8, 1500, [o8]);
   processRange(c8, "2024-01-01", "2024-01-02");
   check("פקודה ללא כיסוי נדחית", o8.status === "rejected", o8.reason ?? "");
+
+  // 8ב. פרופיל "אפליקציה" (D31): 10 פעולות בחודש חינם, ואז $0.01 למניה, מינימום $1.5, תקרה 1.8%
+  const appFees = { ...FEE_PRESETS.app };
+  check("מעבר למכסה: מניה אחת ב-$100 → מינימום $1.5", tradeFee(appFees, "USD", 100, 1, { actions: 10, shares: 10 }) === 1.5);
+  check("מעבר למכסה: חצי מניה ב-$10 → תקרה 1.8% = $0.09", tradeFee(appFees, "USD", 5, 0.5, { actions: 10, shares: 0 }) === 0.09);
+  check("1,001 מניות ב-$1 → מעבר למכסת המניות: $10.01", tradeFee(appFees, "USD", 1001, 1001, { actions: 0, shares: 0 }) === 10.01);
+  check("בת\"א לא חל תמחור האפליקציה", tradeFee(appFees, "ILS", 10000, 1, { actions: 0, shares: 0 }) === 8);
+  const mApp = synthMarket({ bars: { U: { "2024-01-31": { open: 100 }, "2024-02-01": { open: 100 } } }, ccy: { U: "USD" } });
+  const appOrders = Array.from({ length: 11 }, () => order({ symbol: "U", currency: "USD", qty: 1, activeFrom: "2024-01-31", validity: "day" }));
+  const febOrder = order({ symbol: "U", currency: "USD", qty: 1, activeFrom: "2024-02-01", validity: "day" });
+  const cApp = ctxWith(mApp, 0, [...appOrders], pf({ fees: appFees }));
+  apply(cApp.s, { portfolioId: 1, d: "2024-01-01", kind: "deposit", symbol: null, qty: 0, price: null, cashIls: 0, cashUsd: 5000, fee: 0, tax: 0, fxRate: null, orderId: null, meta: {} });
+  processRange(cApp, "2024-01-01", "2024-01-31");
+  const appFeesPaid = cApp.entries.filter((e) => e.kind === "buy").map((e) => Number(e.meta.feeNative));
+  check("10 קניות ראשונות בחודש בחינם, ה-11 משלמת $1.5", appFeesPaid.length === 11 && appFeesPaid.slice(0, 10).every((f) => f === 0) && appFeesPaid[10] === 1.5, appFeesPaid.join(","));
+  cApp.orders.push(febOrder);
+  processRange(cApp, "2024-01-31", "2024-02-01");
+  check("בחודש חדש המכסה מתאפסת", Number(cApp.entries.at(-1)?.meta.feeNative) === 0 && cApp.s.months.get("2024-02")?.actions === 1);
 
   // 9. דמי משמרת רבעוניים
   const m9 = synthMarket({ bars: { X: { "2024-01-02": { open: 100 }, "2024-03-29": { open: 100 } } } });

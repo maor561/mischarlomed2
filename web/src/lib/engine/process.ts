@@ -7,8 +7,8 @@
  * הכול דטרמיניסטי ותלוי רק ב-Market, ולכן ניתן לבדיקה עם נתונים סינתטיים.
  */
 import { GTC_DAYS, RESERVE_BUFFER, TAX_RATE, addDays, convert, daysInMonth, round2, tradeFee } from "./money";
-import { apply, eventKey, fifoCost, taxDelta, type State } from "./state";
-import type { Bar, Ccy, FeeProfile, LedgerEntry, Market, Order, OrderType, Portfolio } from "./types";
+import { apply, eventKey, fifoCost, monthUsage, taxDelta, type State } from "./state";
+import type { Bar, Ccy, FeeProfile, LedgerEntry, Market, MonthUsage, Order, OrderType, Portfolio } from "./types";
 
 export type Ctx = {
   p: Portfolio;
@@ -84,13 +84,19 @@ function close(ctx: Ctx, o: Order, status: Order["status"], reason: string | nul
 export const roundQ = (x: number) => Math.round(x * 1e6) / 1e6;
 
 /** כמה אפשר לקנות (ברוטו, לפני עמלה) בתקציב נתון, כך שקנייה + עמלה ≤ תקציב */
-export function grossForBudget(fees: FeeProfile, ccy: Ccy, budget: number): number {
+export function grossForBudget(fees: FeeProfile, ccy: Ccy, budget: number, price = 0, usage?: MonthUsage): number {
   if (!(budget > 0)) return 0;
-  const [pct, min] = ccy === "USD" ? [fees.usPct, fees.usMin] : [fees.ilPct, fees.ilMin];
-  let g = budget / (1 + pct / 100);
-  if ((g * pct) / 100 < min) g = budget - min; // העמלה המינימלית קובעת
+  // בפרופיל אפליקציה העמלה תלויה בכמות המניות, ולכן גם במחיר
+  const feeOf = (g: number) => tradeFee(fees, ccy, g, price > 0 ? roundQ(g / price) : 0, usage);
+  let g: number;
+  if (fees.app && ccy === "USD") g = budget - feeOf(budget);
+  else {
+    const [pct, min] = ccy === "USD" ? [fees.usPct, fees.usMin] : [fees.ilPct, fees.ilMin];
+    g = budget / (1 + pct / 100);
+    if ((g * pct) / 100 < min) g = budget - min; // העמלה המינימלית קובעת
+  }
   g = Math.floor(g * 100) / 100;
-  while (g > 0 && g + tradeFee(fees, ccy, g) > budget + 1e-9) g = Math.round((g - 0.01) * 100) / 100;
+  while (g > 0 && g + feeOf(g) > budget + 1e-9) g = Math.round((g - 0.01) * 100) / 100;
   return Math.max(0, g);
 }
 
@@ -103,10 +109,11 @@ export function fill(ctx: Ctx, o: Order, d: string, rawPrice: number): void {
   if (o.side === "buy") {
     const avail = availableCash(ctx, ccy, o);
     // לפי סכום (D29): הכמות נקבעת בביצוע, לפי המחיר בפועל, כולל שבר מניה
-    const qty = o.qty ?? roundQ(grossForBudget(ctx.p.fees, ccy, Math.min(o.budget ?? 0, avail)) / price);
+    const usage = monthUsage(ctx.s, d);
+    const qty = o.qty ?? roundQ(grossForBudget(ctx.p.fees, ccy, Math.min(o.budget ?? 0, avail), price, usage) / price);
     if (!(qty > 0) || qty * price < 0.01) return close(ctx, o, "rejected", "הסכום קטן מדי לקנייה");
     const gross = round2(qty * price);
-    const fee = tradeFee(ctx.p.fees, ccy, gross);
+    const fee = tradeFee(ctx.p.fees, ccy, gross, qty, usage);
     const cost = round2(gross + fee);
     if (cost > avail + 0.005) return close(ctx, o, "rejected", `אין מספיק כסף בקופה (נדרש ${cost}, פנוי ${avail})`);
     push(ctx, {
@@ -126,7 +133,7 @@ export function fill(ctx: Ctx, o: Order, d: string, rawPrice: number): void {
   if (qty > free + 1e-9) return close(ctx, o, "rejected", "אין מספיק מניות בתיק");
   const pos = ctx.s.positions.get(o.symbol)!;
   const gross = round2(qty * price);
-  const fee = tradeFee(ctx.p.fees, ccy, gross);
+  const fee = tradeFee(ctx.p.fees, ccy, gross, qty, monthUsage(ctx.s, d));
   const net = round2(gross - fee);
   const { costIls, heldDays } = fifoCost(pos, qty, d);
   const gainIls = round2((ccy === "USD" ? net * fx : net) - costIls);
@@ -323,25 +330,27 @@ export function estimate(
   // בלימיט/סטופ מעריכים לפי המחיר שנקבע, כי זה המחיר הצפוי
   const px = input.type === "market" || input.price == null ? refPrice : input.price;
   const freeShares = availableShares(ctx, input.symbol);
+  // הערכה: לפי המכסה של חודש הסימולציה הנוכחי
+  const usage = monthUsage(ctx.s, ctx.p.simDate);
   if (input.side === "buy") {
     const available = availableCash(ctx, ccy);
     if (input.budget != null) {
       // לפי סכום: שומרים בדיוק את הסכום, והכמות נגזרת ממנו
-      const gross = grossForBudget(ctx.p.fees, ccy, input.budget);
-      const fee = tradeFee(ctx.p.fees, ccy, gross);
+      const gross = grossForBudget(ctx.p.fees, ccy, input.budget, px, usage);
+      const fee = tradeFee(ctx.p.fees, ccy, gross, roundQ(gross / px), usage);
       const reserve = round2(input.budget);
       return { refPrice, currency: ccy, gross, fee, total: reserve, reserve, available, shortfall: round2(Math.max(0, reserve - available)), qty: roundQ(gross / px) };
     }
     const qty = roundQ(input.qty ?? 0);
     const gross = round2(qty * px);
-    const fee = tradeFee(ctx.p.fees, ccy, gross);
+    const fee = tradeFee(ctx.p.fees, ccy, gross, qty, usage);
     const total = round2(gross + fee);
     const reserve = round2(input.type === "limit" ? total : total * (1 + RESERVE_BUFFER));
     return { refPrice, currency: ccy, gross, fee, total, reserve, available, shortfall: round2(Math.max(0, reserve - available)), qty };
   }
   const qty = input.sellAll ? freeShares : input.budget != null ? Math.min(freeShares, roundQ(input.budget / px)) : roundQ(input.qty ?? 0);
   const gross = round2(qty * px);
-  const fee = tradeFee(ctx.p.fees, ccy, gross);
+  const fee = tradeFee(ctx.p.fees, ccy, gross, qty, usage);
   const wanted = input.budget != null ? roundQ(input.budget / px) : qty;
   return { refPrice, currency: ccy, gross, fee, total: round2(gross - fee), reserve: 0, available: freeShares, shortfall: roundQ(Math.max(0, wanted - freeShares)), qty };
 }

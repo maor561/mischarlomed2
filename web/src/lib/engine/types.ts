@@ -3,19 +3,35 @@
 export type Ccy = "ILS" | "USD";
 
 export type FeeProfile = {
-  kind: "bank" | "online" | "custom";
+  kind: "bank" | "online" | "app" | "custom";
   usPct: number; // עמלת קנייה/מכירה בארה"ב, באחוזים
   usMin: number; // מינימום בדולרים
   ilPct: number; // עמלת קנייה/מכירה בת"א, באחוזים
   ilMin: number; // מינימום בשקלים
   custodyPctYear: number; // דמי משמרת לשנה, באחוזים משווי ההחזקות
   fxPct: number; // עמלת המרת מט"ח, באחוזים
+  /** תמחור "אפליקציה" (D31) לעסקאות בדולרים: חינם עד מכסה חודשית, ואחר כך לפי מניה. כשקיים, הוא גובר על usPct/usMin */
+  app?: AppPricing;
 };
 
+export type AppPricing = {
+  freeActions: number; // פעולות חינם בחודש
+  freeShares: number; // מניות חינם בחודש (המוקדם מביניהם)
+  perShare: number; // $ למניה או לחלק ממנה, אחרי המכסה
+  min: number; // מינימום $ לעסקה בתשלום
+  maxPct: number; // תקרה: אחוז משווי העסקה
+};
+
+/** שימוש במכסה בחודש מסוים (לפי חודש הסימולציה) */
+export type MonthUsage = { actions: number; shares: number };
+
 /** מספרים טיפוסיים להמחשה (D10). כל ערך ניתן לעריכה בתיק */
-export const FEE_PRESETS: Record<"bank" | "online", FeeProfile> = {
+export const FEE_PRESETS: Record<"bank" | "online" | "app", FeeProfile> = {
   bank: { kind: "bank", usPct: 0.2, usMin: 15, ilPct: 0.2, ilMin: 25, custodyPctYear: 0.15, fxPct: 0.5 },
   online: { kind: "online", usPct: 0.08, usMin: 2.5, ilPct: 0.08, ilMin: 7, custodyPctYear: 0, fxPct: 0.2 },
+  // לפי תעריפון שפורסם לאפליקציות השקעה: 10 פעולות או 1,000 מניות בחודש חינם, ואז $0.01 למניה, מינימום $1.5, תקרה 1.8%.
+  // עמלת ההמרה לא פורסמה: 0.5% היא הנחה שאפשר לערוך. בת"א משתמשים בתעריף אונליין
+  app: { kind: "app", usPct: 0, usMin: 0, ilPct: 0.08, ilMin: 7, custodyPctYear: 0, fxPct: 0.5, app: { freeActions: 10, freeShares: 1000, perShare: 0.01, min: 1.5, maxPct: 1.8 } },
 };
 
 export type MonthlyDeposit = { amount: number; day: number; autoBuy: string | null };

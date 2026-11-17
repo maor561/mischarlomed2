@@ -231,7 +231,7 @@ export default function PortfolioScreen() {
             <h3 className="font-semibold">פרטי התיק</h3>
             <div>נפתח ב-<span className="num">{dateHe(p.startDate)}</span> עם <span className="num">{money(p.initialCapital, "ILS", 0)}</span></div>
             {isTime && <div>סוף המסע: <span className="num">{p.endDate ? dateHe(p.endDate) : "עד היום"}</span></div>}
-            <div>עמלות: {p.fees.kind === "bank" ? "🏦 בנק" : p.fees.kind === "online" ? "💻 ברוקר אונליין" : "✏️ מותאם"} (קנייה/מכירה בארה&quot;ב {p.fees.usPct}%, מינימום ${p.fees.usMin} · המרה {p.fees.fxPct}% · משמרת {p.fees.custodyPctYear}% לשנה)</div>
+            <div>עמלות: {p.fees.kind === "bank" ? "🏦 בנק" : p.fees.kind === "online" ? "💻 ברוקר אונליין" : p.fees.kind === "app" ? "📱 אפליקציה" : "✏️ מותאם"} ({p.fees.app ? <>בארה&quot;ב {p.fees.app.freeActions} פעולות או {p.fees.app.freeShares} מניות בחודש חינם, ואז ${p.fees.app.perShare} למניה, מינימום ${p.fees.app.min}</> : <>קנייה/מכירה בארה&quot;ב {p.fees.usPct}%, מינימום ${p.fees.usMin}</>} · המרה {p.fees.fxPct}% · משמרת {p.fees.custodyPctYear}% לשנה)</div>
             {p.deposit && <div>הפקדה: <span className="num">{money(p.deposit.amount, "ILS", 0)}</span> ב-{p.deposit.day} לחודש{p.deposit.autoBuy && <> · קנייה אוטומטית של <b className="num">{p.deposit.autoBuy}</b></>}</div>}
             <div>מדד השוואה: {p.benchmark === "TA125" ? "ת\"א-125" : "S&P 500"}</div>
             <button className="text-xs text-down underline pt-3" onClick={remove}>מחיקת התיק</button>
