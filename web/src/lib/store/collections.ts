@@ -70,3 +70,17 @@ export const COLLECTIONS: Collection[] = [
 ];
 
 export const collectionById = (id: string) => COLLECTIONS.find((c) => c.id === id);
+
+/** שמות להצגה מיידית, לפני שהנתונים של הנייר נטענו */
+export const NAMES: Record<string, string> = {
+  VOO: "Vanguard S&P 500 ETF", VTI: "Vanguard Total Stock Market ETF", QQQ: "Invesco QQQ Trust", DIA: "SPDR Dow Jones ETF", IWM: "iShares Russell 2000 ETF",
+  VXUS: "Vanguard Total International Stock ETF", VT: "Vanguard Total World Stock ETF",
+  NVDA: "NVIDIA", MSFT: "Microsoft", GOOGL: "Alphabet (Google)", AMD: "AMD", META: "Meta Platforms", AVGO: "Broadcom", TSM: "TSMC", PLTR: "Palantir",
+  ICLN: "iShares Global Clean Energy ETF", TAN: "Invesco Solar ETF", ENPH: "Enphase Energy", FSLR: "First Solar", NEE: "NextEra Energy", TSLA: "Tesla",
+  JNJ: "Johnson & Johnson", PFE: "Pfizer", LLY: "Eli Lilly", UNH: "UnitedHealth", MRK: "Merck", ABBV: "AbbVie", XLV: "Health Care Select Sector SPDR",
+  AAPL: "Apple", AMZN: "Amazon", KO: "Coca-Cola", NKE: "Nike", MCD: "McDonald's", DIS: "Disney", SBUX: "Starbucks", NFLX: "Netflix",
+  EIS: "iShares MSCI Israel ETF", TEVA: "Teva", CHKP: "Check Point", NICE: "NICE", WIX: "Wix", ESLT: "Elbit Systems", "LUMI.TA": "בנק לאומי", "POLI.TA": "בנק הפועלים",
+  SCHD: "Schwab US Dividend Equity ETF", VYM: "Vanguard High Dividend Yield ETF", PG: "Procter & Gamble", PEP: "PepsiCo", O: "Realty Income", XOM: "ExxonMobil",
+  BND: "Vanguard Total Bond Market ETF", AGG: "iShares Core US Aggregate Bond", SHY: "iShares 1-3 Year Treasury", IEF: "iShares 7-10 Year Treasury",
+  TLT: "iShares 20+ Year Treasury", LQD: "iShares Investment Grade Corporate Bond", TIP: "iShares TIPS Bond",
+};

@@ -77,6 +77,12 @@ async function doSync(symbol: string, existing: { last_bar: string | null } | un
   );
 }
 
+/** האם ההיסטוריה של הנייר כבר הורדה פעם אחת (בלי להוריד) */
+export async function isCached(symbolIn: string): Promise<boolean> {
+  const [r] = await query(`SELECT 1 FROM history_sync WHERE symbol=$1`, [normalizeSymbol(symbolIn)]);
+  return !!r;
+}
+
 /** מוודא שההיסטוריה של הנייר נמצאת במטמון ועדכנית */
 export async function ensureHistory(symbolIn: string): Promise<void> {
   const symbol = normalizeSymbol(symbolIn);

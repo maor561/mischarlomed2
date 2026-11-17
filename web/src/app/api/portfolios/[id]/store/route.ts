@@ -4,10 +4,12 @@ import { buyCollection, storeView } from "@/lib/store/store";
 
 type Ctx = RouteContext<"/api/portfolios/[id]/store">;
 
-export const GET = async (_req: Request, ctx: Ctx) => {
+/** ?collection=ai מוריד ומחזיר רק את האוסף הזה. בלי פרמטר: כל האוספים, מיד, מהמטמון */
+export const GET = async (req: Request, ctx: Ctx) => {
   await connection();
   const id = intParam((await ctx.params).id);
-  return handleFor(id, () => storeView(id));
+  const collection = new URL(req.url).searchParams.get("collection");
+  return handleFor(id, () => storeView(id, collection));
 };
 
 /** קנייה של אוסף שלם בחלוקה שווה */

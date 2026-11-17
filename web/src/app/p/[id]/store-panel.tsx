@@ -31,6 +31,24 @@ export default function StorePanel({ id, version, onBought, onPlan }: { id: stri
     };
   }, [id, version]);
 
+  // אוסף שנפתח ועוד לא נטען: מורידים רק את הניירות שלו (5–8), ומחליפים אותו ברשימה
+  const [loadErr, setLoadErr] = useState("");
+  const needLoad = !!data && !!open && data.collections.find((c) => c.id === open)?.loaded === false;
+  useEffect(() => {
+    if (!needLoad || !open) return;
+    let live = true;
+    api<StoreView>(`/api/portfolios/${id}/store?collection=${open}`)
+      .then((d) => {
+        if (!live) return;
+        setLoadErr("");
+        setData((cur) => (cur ? { ...cur, collections: cur.collections.map((c) => d.collections.find((x) => x.id === c.id) ?? c) } : cur));
+      })
+      .catch((e) => live && setLoadErr((e as Error).message));
+    return () => {
+      live = false;
+    };
+  }, [id, open, needLoad]);
+
   const goStock = (s: string) => router.push(`/p/${id}/stock/${encodeURIComponent(s)}`);
   const col = data?.collections.find((c) => c.id === open) ?? null;
 
@@ -57,16 +75,22 @@ export default function StorePanel({ id, version, onBought, onPlan }: { id: stri
                 >
                   <span className="text-3xl">{c.emoji}</span>
                   <b className="mt-auto text-lg leading-tight">{c.title}</b>
-                  <span className="text-xs text-ink-2">{c.availableCount} ניירות · שנה <span className="num">{pct(c.yearPct)}</span></span>
+                  <span className="text-xs text-ink-2">{c.availableCount} ניירות{c.yearPct != null && <> · שנה <span className="num">{pct(c.yearPct)}</span></>}</span>
                 </button>
               ))}
             </div>
           </section>
 
           {col && <CollectionCard id={id} col={col} goStock={goStock} onBought={onBought} onPlan={onPlan} />}
+          {col && !col.loaded && (
+            <div className={`text-sm rounded-2xl p-3 ${loadErr ? "bg-down-soft text-down" : "bg-soft text-ink-2"}`}>
+              {loadErr ? <>לא הצלחתי לטעון את האוסף: {loadErr} <button className="underline" onClick={() => { setLoadErr(""); setOpen(null); setTimeout(() => setOpen(col.id), 0); }}>לנסות שוב</button></> : "⏳ טוען מחירים לאוסף… בפעם הראשונה זה יכול לקחת עד חצי דקה, ואחר כך זה מהיר."}
+            </div>
+          )}
 
           <section>
             <h3 className="font-semibold mb-2">🔥 הפעילים ביותר {data.asOf === "" ? "" : <span className="text-xs text-muted font-normal">ב-<span className="num">{dateHe(data.asOf)}</span></span>}</h3>
+            {data.active.length === 0 && <p className="text-sm text-muted">יופיעו כאן אחרי שתפתח כמה אוספים.</p>}
             <div className="flex gap-2 overflow-x-auto pb-2">
               {data.active.map((x) => (
                 <button key={x.symbol} onClick={() => goStock(x.symbol)} className="card shrink-0 w-32 text-start space-y-1 hover:border-brand">
@@ -90,6 +114,7 @@ function CollectionCard({ id, col, goStock, onBought, onPlan }: { id: string; co
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const avail = col.items.filter((x) => x.available);
+  const ready = col.loaded;
   const share = avail.length ? Math.floor((amount / avail.length) * 100) / 100 : 0;
   const lesson = LESSON_BY_N.get(col.lesson);
 
@@ -131,7 +156,7 @@ function CollectionCard({ id, col, goStock, onBought, onPlan }: { id: string; co
           <button key={x.symbol} disabled={!x.available} onClick={() => goStock(x.symbol)} className="w-full flex items-center gap-3 py-2 text-start disabled:opacity-50">
             <SymbolDot symbol={x.symbol} />
             <span className="min-w-0 flex-1">
-              <b className="num">{x.symbol}</b> <span className="text-xs text-muted">{x.kind === "ETF" ? "קרן סל" : "מניה"}</span>
+              <b className="num">{x.symbol}</b> {x.kind && <span className="text-xs text-muted">{x.kind === "ETF" ? "קרן סל" : "מניה"}</span>}
               <span className="block text-xs text-muted truncate"><bdi>{x.name}</bdi></span>
             </span>
             {x.available ? (
@@ -140,7 +165,7 @@ function CollectionCard({ id, col, goStock, onBought, onPlan }: { id: string; co
                 <span className={`block text-xs num ${tone(x.yearPct)}`}>שנה {pct(x.yearPct)}</span>
               </span>
             ) : (
-              <span className="text-xs text-muted">{x.since ? <>נסחר רק מ-<span className="num">{dateHe(x.since)}</span></> : "אין נתונים"}</span>
+              <span className="text-xs text-muted">{!x.loaded ? "…" : x.since ? <>נסחר רק מ-<span className="num">{dateHe(x.since)}</span></> : "אין נתונים"}</span>
             )}
           </button>
         ))}
@@ -158,7 +183,7 @@ function CollectionCard({ id, col, goStock, onBought, onPlan }: { id: string; co
         <p className="text-xs text-muted">פקודת שוק לכל נייר, לפי סכום ועם שברי מניות. ההמרה לדולרים אוטומטית. כל נייר נספר כפעולה במכסת העמלות.</p>
         {err && <div className="text-sm rounded-lg p-2.5 bg-down-soft text-down">{err}</div>}
         <div className="flex gap-2 flex-wrap">
-          <button className="btn" disabled={busy || share < 10} onClick={buy}>{busy ? "שולח…" : `קנה ב-${money(amount, "ILS", 0)}`}</button>
+          <button className="btn" disabled={busy || !ready || share < 10} onClick={buy}>{busy ? "שולח…" : `קנה ב-${money(amount, "ILS", 0)}`}</button>
           <button className="btn-ghost" disabled={!avail.length} onClick={() => onPlan(`אוסף ${col.title}`, avail.map((x) => x.symbol))}>🔁 השקעה קבועה באוסף</button>
         </div>
       </div>

@@ -19,24 +19,24 @@ function check(name: string, ok: boolean, detail = "") {
   console.log("\n— אוספים —");
   check("8 אוספים", COLLECTIONS.length === 8);
   check("בכל אוסף 5 עד 10 ניירות", COLLECTIONS.every((c) => c.symbols.length >= 5 && c.symbols.length <= 10));
-  const missing: string[] = [];
-  for (const s of new Set(COLLECTIONS.flatMap((c) => c.symbols))) {
-    const m = await getInstrument(s).catch(() => null);
-    const h = m ? await getHistory(s, { from: "2024-01-01" }) : [];
-    if (!m || h.length < 100) missing.push(s);
-  }
-  check("לכל נייר יש נתונים ב-Yahoo", !missing.length, missing.join(", "));
-
   console.log("\n— מכונת זמן —");
   const id = await svc.createPortfolio({ name: "בדיקת חנות", mode: "time", startDate: "2018-03-01", capital: 20000, fees: FEE_PRESETS.app, deposit: null });
+  const t0 = Date.now();
+  const first = await storeView(id);
+  const ms = Date.now() - t0;
+  check("רשימת האוספים חוזרת מהר גם כשהמטמון ריק", ms < 15000 && first.collections.length === 8, `${ms}ms`);
+  const t1 = Date.now();
+  const one = await storeView(id, "ai");
+  console.log(`  (טעינת אוסף AI: ${Date.now() - t1}ms)`);
+  const ai = one.collections[0];
+  check("פתיחת אוסף טוענת את הניירות שלו", ai.loaded && ai.items.every((x) => x.loaded));
   const v = await storeView(id);
-  const ai = v.collections.find((c) => c.id === "ai")!;
   const pltr = ai.items.find((x) => x.symbol === "PLTR");
   check("PLTR לא זמינה ב-2018 (נסחרת מ-2020)", !!pltr && !pltr.available && pltr.since === "2020-09-30", JSON.stringify(pltr?.since));
   check("NVDA זמינה, במחיר של אז (לפני הפיצולים)", !!ai.items.find((x) => x.symbol === "NVDA" && x.available && x.price! > 150));
   check("יש רשימת \"הפעילים ביותר\"", v.active.length > 0, v.active.slice(0, 3).map((x) => x.symbol).join(","));
   const r = await buyCollection(id, "ai", 1400);
-  check("קנייה של אוסף: פקודה לכל נייר זמין (7)", r.results.length === 7 && r.results.every((x) => !x.error), `₪${r.share} לכל אחד`);
+  check("קנייה של אוסף: פקודה לכל נייר זמין (7)", r.results.length === 7 && r.results.every((x) => !x.error), `₪${r.share} לכל אחד ${r.results.filter((x) => x.error).map((x) => `${x.symbol}: ${x.error}`).join("; ")}`);
   let tooSmall = false;
   try {
     await buyCollection(id, "broad", 30);
@@ -45,6 +45,15 @@ function check(name: string, ok: boolean, detail = "") {
   }
   check("סכום קטן מדי לחלוקה נחסם", tooSmall);
   await svc.deletePortfolio(id);
+
+  console.log("\n— נתונים —");
+  const missing: string[] = [];
+  for (const s of new Set(COLLECTIONS.flatMap((c) => c.symbols))) {
+    const m = await getInstrument(s).catch(() => null);
+    const h = m ? await getHistory(s, { from: "2024-01-01" }) : [];
+    if (!m || h.length < 100) missing.push(s);
+  }
+  check("לכל נייר יש נתונים ב-Yahoo", !missing.length, missing.join(", "));
 
   console.log(fail ? `\n${fail} בדיקות נכשלו` : "\nכל הבדיקות עברו");
   process.exit(fail ? 1 : 0);

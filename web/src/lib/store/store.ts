@@ -5,8 +5,8 @@
 import { addDays, round2, todayIL } from "../engine/money";
 import { loadPortfolio, placeOrder, UserError } from "../engine/service";
 import type { Order } from "../engine/types";
-import { getHistory, getInstrument, priceOn, USD_ILS } from "../market";
-import { COLLECTIONS, collectionById } from "./collections";
+import { getHistory, getInstrument, isCached, priceOn, USD_ILS } from "../market";
+import { COLLECTIONS, collectionById, NAMES } from "./collections";
 
 export type StoreItem = {
   symbol: string;
@@ -14,6 +14,8 @@ export type StoreItem = {
   currency: string;
   kind: string;
   available: boolean;
+  /** false = הנתונים עוד לא הורדו (נטענים כשפותחים את האוסף) */
+  loaded: boolean;
   /** מתי התחיל להיסחר (אם עוד לא נסחר ביום הסימולציה) */
   since: string | null;
   price: number | null;
@@ -36,7 +38,7 @@ export async function itemInfo(symbol: string, end: string, fx: number): Promise
   const fullYear = !!yearAgo && yearAgo.d <= addDays(end, -355);
   const turnover = last ? last.close * (last.volume ?? 0) : 0;
   return {
-    symbol: meta.symbol, name: meta.name, currency: meta.currency, kind: meta.kind, available,
+    symbol: meta.symbol, name: meta.name, currency: meta.currency, kind: meta.kind, available, loaded: true,
     since: started ? null : meta.firstTrade,
     price: available ? round2(last!.close) : null,
     dayPct: available && prev ? round2((last!.close / prev.close - 1) * 100) : null,
@@ -50,27 +52,41 @@ async function inChunks<T>(xs: T[], n: number, fn: (x: T) => Promise<void>) {
   for (let i = 0; i < xs.length; i += n) await Promise.all(xs.slice(i, i + n).map(fn));
 }
 
-export async function storeView(id: number) {
+const placeholder = (symbol: string): StoreItem => ({
+  symbol, name: NAMES[symbol] ?? symbol, currency: symbol.endsWith(".TA") ? "ILS" : "USD", kind: "", available: false, loaded: false,
+  since: null, price: null, dayPct: null, yearPct: null, turnoverUsd: 0,
+});
+
+/**
+ * הורדה ראשונה של היסטוריה לכל 58 הניירות איטית מאוד בענן, ולכן:
+ * בלי collection: מחזירים מיד את כל האוספים, עם נתונים רק לניירות שכבר במטמון.
+ * עם collection: מורידים (אם צריך) רק את הניירות של האוסף הזה.
+ */
+export async function storeView(id: number, collectionId?: string | null) {
   const p = await loadPortfolio(id);
   const end = p.mode === "live" ? todayIL() : p.simDate;
   const fx = (await priceOn(USD_ILS, end))?.close ?? 3.7;
+  const pick = collectionId ? collectionById(collectionId) : null;
   const info = new Map<string, StoreItem>();
-  await inChunks([...new Set(COLLECTIONS.flatMap((c) => c.symbols))], 6, async (s) => {
-    const it = await itemInfo(s, end, fx).catch(() => null);
-    if (it) info.set(s, it);
+  const symbols = pick ? pick.symbols : [...new Set(COLLECTIONS.flatMap((c) => c.symbols))];
+  await inChunks(symbols, pick ? 4 : 8, async (s) => {
+    const it = pick || (await isCached(s)) ? await itemInfo(s, end, fx).catch(() => null) : null;
+    info.set(s, it ?? placeholder(s));
   });
-  const collections = COLLECTIONS.map((c) => {
-    const items = c.symbols.map((s) => info.get(s)).filter((x): x is StoreItem => !!x);
+  const collections = (pick ? [pick] : COLLECTIONS).map((c) => {
+    const items = c.symbols.map((s) => info.get(s) ?? placeholder(s));
+    const loaded = items.every((x) => x.loaded);
     const withYear = items.filter((x) => x.yearPct != null);
     return {
       ...c,
       items,
-      availableCount: items.filter((x) => x.available).length,
+      loaded,
+      availableCount: loaded ? items.filter((x) => x.available).length : c.symbols.length,
       /** ממוצע פשוט: כמו אוסף שנקנה בחלוקה שווה לפני שנה */
-      yearPct: withYear.length ? round2(withYear.reduce((a, x) => a + x.yearPct!, 0) / withYear.length) : null,
+      yearPct: loaded && withYear.length ? round2(withYear.reduce((a, x) => a + x.yearPct!, 0) / withYear.length) : null,
     };
   });
-  const active = [...info.values()].filter((x) => x.available && x.turnoverUsd > 0).sort((a, b) => b.turnoverUsd - a.turnoverUsd).slice(0, 10);
+  const active = pick ? [] : [...info.values()].filter((x) => x.available && x.turnoverUsd > 0).sort((a, b) => b.turnoverUsd - a.turnoverUsd).slice(0, 10);
   return { asOf: end, collections, active };
 }
 export type StoreView = Awaited<ReturnType<typeof storeView>>;
