@@ -151,6 +151,16 @@ CREATE TABLE IF NOT EXISTS journal_notes (
 ALTER TABLE orders ALTER COLUMN qty TYPE DOUBLE PRECISION;
 ALTER TABLE orders ALTER COLUMN fill_qty TYPE DOUBLE PRECISION;
 
+-- ===== גרסה 2, חבילה 11: תוכניות השקעה קבועות (D31). ההפקדה החודשית הישנה הופכת לתוכנית =====
+ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS plans JSONB NOT NULL DEFAULT '[]';
+UPDATE portfolios SET plans = jsonb_build_array(jsonb_build_object(
+    'id', 1, 'name', CASE WHEN deposit->>'autoBuy' IS NULL THEN 'הפקדה חודשית' ELSE 'הוראת קבע ' || (deposit->>'autoBuy') END,
+    'amount', (deposit->>'amount')::float8, 'freq', 'monthly', 'day', (deposit->>'day')::int,
+    'items', CASE WHEN deposit->>'autoBuy' IS NULL THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object('symbol', deposit->>'autoBuy', 'pct', 100)) END,
+    'source', 'deposit', 'status', 'active', 'startD', start_date::text, 'migrated', true)),
+  deposit = NULL
+  WHERE deposit IS NOT NULL AND jsonb_typeof(deposit) = 'object';
+
 -- ===== חבילה 6: התקדמות בשיעורים (משתמש יחיד) =====
 CREATE TABLE IF NOT EXISTS lesson_progress (
   n            INTEGER PRIMARY KEY,

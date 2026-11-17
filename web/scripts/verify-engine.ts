@@ -4,7 +4,7 @@
  * חלק ב: נתונים אמיתיים דרך השירות המלא ומסד הנתונים.
  * הרצה: npx tsx scripts/verify-engine.ts
  */
-import { FEE_PRESETS, type Bar, type Market, type Order, type Portfolio } from "../src/lib/engine/types";
+import { FEE_PRESETS, type Bar, type Market, type Order, type Plan, type Portfolio } from "../src/lib/engine/types";
 import { makeCtx, processRange, triggerOnBar, estimate, type Ctx } from "../src/lib/engine/process";
 import { emptyState, apply } from "../src/lib/engine/state";
 import { addDays, tradeFee } from "../src/lib/engine/money";
@@ -41,12 +41,16 @@ function synthMarket(x: Synth): Market {
 }
 
 function pf(over: Partial<Portfolio> = {}): Portfolio {
-  return { id: 1, name: "t", mode: "time", startDate: "2024-01-01", simDate: "2024-01-01", processedThrough: "2024-01-01", initialCapital: 100000, fees: { ...FEE_PRESETS.online, kind: "custom", ilPct: 0.1, ilMin: 5, usPct: 0.1, usMin: 2 }, deposit: null, createdAt: "", endDate: null, blind: false, periodName: null, benchmark: "SPY", nav: 1, navPeak: 1, lastValue: null, ddAlerted: false, lastMarketStop: null, ...over };
+  return { id: 1, name: "t", mode: "time", startDate: "2024-01-01", simDate: "2024-01-01", processedThrough: "2024-01-01", initialCapital: 100000, fees: { ...FEE_PRESETS.online, kind: "custom", ilPct: 0.1, ilMin: 5, usPct: 0.1, usMin: 2 }, deposit: null, plans: [], createdAt: "", endDate: null, blind: false, periodName: null, benchmark: "SPY", nav: 1, navPeak: 1, lastValue: null, ddAlerted: false, lastMarketStop: null, ...over };
 }
 
 let oid = 1;
 function order(o: Partial<Order>): Order {
   return { id: oid++, portfolioId: 1, createdD: "2024-01-01", activeFrom: "2024-01-02", liveToday: false, side: "buy", symbol: "X", currency: "ILS", qty: 10, budget: null, type: "market", price: null, validity: "gtc", expiresD: "2024-12-31", status: "pending", reason: null, filledD: null, fillPrice: null, fillQty: null, reserved: 0, why: "t", exitPlan: null, source: "user", splitsApplied: [], ...o };
+}
+
+function plan(o: Partial<Plan> = {}): Plan {
+  return { id: 1, name: "t", amount: 1000, freq: "monthly", day: 1, items: [], source: "deposit", status: "active", startD: "2024-01-01", ...o };
 }
 
 function ctxWith(m: Market, cashIls: number, orders: Order[], p = pf()): Ctx {
@@ -127,12 +131,35 @@ function partA() {
 
   // 7. הפקדה חודשית וקנייה אוטומטית בדולרים
   const m7 = synthMarket({ bars: { V: { "2024-02-01": { open: 100 }, "2024-02-02": { open: 100 } } }, ccy: { V: "USD" }, fx: 4 });
-  const c7 = ctxWith(m7, 0, [], pf({ deposit: { amount: 1000, day: 1, autoBuy: "V" } }));
+  const c7 = ctxWith(m7, 0, [], pf({ plans: [plan({ items: [{ symbol: "V", pct: 100 }] })] }));
   processRange(c7, "2024-01-01", "2024-02-02");
   const buy7 = c7.entries.find((e) => e.kind === "buy");
   // 1000 ₪ − 0.2% = 998 → $249.50. 2 מניות × 100 + עמלה $2 = $202
   // שברי מניות (D29): $249.50 − עמלת מינימום $2 = $247.50 → 2.475 מניות, וכל הסכום מושקע
   check("הוראת קבע: המרה ל-$249.50 וקנייה של 2.475 מניות", buy7?.qty === 2.475 && near(c7.s.cash.USD, 0), `${buy7?.qty} מניות, נשאר $${c7.s.cash.USD}`);
+
+  // 7א. תוכניות קבועות (D31): שבועית בחלוקה 70/30, השהיה, מהמזומן, יומית
+  const m7a = synthMarket({ bars: { V: { "2024-01-09": { open: 100 }, "2024-01-16": { open: 100 } }, Y: { "2024-01-09": { open: 50 }, "2024-01-16": { open: 50 } } }, ccy: { V: "USD" }, fx: 4 });
+  const weekly = plan({ freq: "weekly", day: 1, items: [{ symbol: "V", pct: 70 }, { symbol: "Y", pct: 30 }] });
+  const c7a = ctxWith(m7a, 0, [], pf({ plans: [weekly] }));
+  processRange(c7a, "2024-01-01", "2024-01-16");
+  const deps7a = c7a.entries.filter((e) => e.kind === "deposit").map((e) => e.d);
+  const fx7a = c7a.entries.filter((e) => e.kind === "fx").map((e) => Number(e.meta.amount));
+  const buys7a = c7a.entries.filter((e) => e.kind === "buy");
+  check("שבועית בימי שני: 8.1 ו-15.1 (לא ביום ההתחלה)", deps7a.join(",") === "2024-01-08,2024-01-15", deps7a.join(","));
+  check("70% מומרים לדולרים (₪700), 30% נשארים בשקלים", fx7a.every((a) => a === 700) && fx7a.length === 2);
+  check("4 קניות לפי סכום, כל השקל מושקע", buys7a.length === 4 && near(c7a.s.cash.ILS, 0, 5) && near(c7a.s.cash.USD, 0, 1), `${buys7a.length} קניות · ₪${c7a.s.cash.ILS} · $${c7a.s.cash.USD}`);
+  const c7p = ctxWith(m7a, 0, [], pf({ plans: [{ ...weekly, status: "paused" }] }));
+  processRange(c7p, "2024-01-01", "2024-01-16");
+  check("תוכנית מושהית לא רצה", c7p.entries.length === 0);
+  const c7c = ctxWith(m7a, 500, [], pf({ plans: [{ ...weekly, source: "cash" }] }));
+  processRange(c7c, "2024-01-01", "2024-01-16");
+  const marks = c7c.entries.filter((e) => e.kind === "plan");
+  check("מהמזומן: אין הפקדה, ובלי מספיק שקלים התוכנית מדלגת", !c7c.entries.some((e) => e.kind === "deposit") && marks.length === 2 && !!marks[0].meta.skipped, marks.map((e) => e.meta.skipped ?? "רצה").join(" | "));
+  const c7d = ctxWith(m7a, 0, [], pf({ plans: [plan({ freq: "daily", amount: 100 })] }));
+  processRange(c7d, "2024-01-01", "2024-01-14");
+  const n7d = c7d.entries.filter((e) => e.kind === "deposit").length;
+  check("יומית: רק בימי מסחר (ב'–ו'), 9 פעמים מ-2.1 עד 14.1", n7d === 9, String(n7d));
 
   // 7ב. שברי מניות: קנייה לפי סכום, מכירה לפי סכום, ופיצול של כמות שבורה
   const m7b = synthMarket({ bars: { X: { "2024-01-02": { open: 300 }, "2024-01-03": { open: 320 }, "2024-01-04": { open: 330 } } }, splits: { X: { "2024-01-04": 3 } } });

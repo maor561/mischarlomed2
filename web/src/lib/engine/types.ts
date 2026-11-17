@@ -34,7 +34,29 @@ export const FEE_PRESETS: Record<"bank" | "online" | "app", FeeProfile> = {
   app: { kind: "app", usPct: 0, usMin: 0, ilPct: 0.08, ilMin: 7, custodyPctYear: 0, fxPct: 0.5, app: { freeActions: 10, freeShares: 1000, perShare: 0.01, min: 1.5, maxPct: 1.8 } },
 };
 
+/** קלט ישן של אשף התיק. מומר לתוכנית השקעה קבועה (D31) */
 export type MonthlyDeposit = { amount: number; day: number; autoBuy: string | null };
+
+export type PlanFreq = "daily" | "weekly" | "monthly";
+/**
+ * תוכנית השקעה קבועה (D31): כל יום מסחר / שבוע / חודש, סכום בשקלים שמתחלק בין ניירות לפי אחוזים.
+ * source=deposit: כסף חדש נכנס לתיק (כמו הפקדה). source=cash: מהמזומן שכבר בתיק.
+ * day: בחודשית יום בחודש (1–31), בשבועית יום בשבוע (0=ראשון … 6=שבת). ביומית לא בשימוש (ימים ב'–ו').
+ */
+export type Plan = {
+  id: number;
+  name: string;
+  amount: number;
+  freq: PlanFreq;
+  day: number;
+  items: { symbol: string; pct: number }[];
+  source: "deposit" | "cash";
+  status: "active" | "paused";
+  /** התוכנית רצה רק בימים שאחרי התאריך הזה */
+  startD: string;
+  /** הומרה מ"הפקדה חודשית" ישנה: מכבדים גם את מפתח ההפקדה הישן */
+  migrated?: boolean;
+};
 
 export type Portfolio = {
   id: number;
@@ -47,7 +69,9 @@ export type Portfolio = {
   processedThrough: string;
   initialCapital: number;
   fees: FeeProfile;
+  /** ישן. אחרי ההמרה תמיד null; התוכניות ב-plans */
   deposit: MonthlyDeposit | null;
+  plans: Plan[];
   createdAt: string;
   /** מכונת זמן: תאריך סיום המסע (null = עד היום) */
   endDate: string | null;
@@ -106,7 +130,8 @@ export type Order = {
   mentor?: { id: string; level: string; icon: string; title: string; body: string }[];
 };
 
-export type LedgerKind = "deposit" | "fx" | "buy" | "sell" | "dividend" | "split" | "custody";
+/** plan: סימון ביצוע (או דילוג) של תוכנית קבועה שממומנת מהמזומן. בלי שינוי בקופה */
+export type LedgerKind = "deposit" | "fx" | "buy" | "sell" | "dividend" | "split" | "custody" | "plan";
 
 export type LedgerEntry = {
   id?: number;

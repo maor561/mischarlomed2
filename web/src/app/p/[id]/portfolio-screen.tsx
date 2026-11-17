@@ -8,6 +8,7 @@ import OrderForm, { type OrderPrefill } from "./order-form";
 import FxForm from "./fx-form";
 import HistoryPanel from "./history-panel";
 import TaxPanel from "./tax-panel";
+import PlansPanel, { planWhen } from "./plans-panel";
 import TimeBar, { type AdvanceResult } from "./time-bar";
 import StopModal from "./stop-modal";
 import JourneyChart from "./journey-chart";
@@ -17,7 +18,7 @@ import JournalPanel from "./journal-panel";
 import type { Journal } from "@/lib/mentor/journal";
 
 /** חמש לשוניות ראשיות (D20). "עוד" מכילה את המסכים הפחות שכיחים */
-type Tab = "overview" | "order" | "chart" | "history" | "journal" | "cash" | "tax" | "report" | "details";
+type Tab = "overview" | "order" | "chart" | "history" | "plans" | "journal" | "cash" | "tax" | "report" | "details";
 const MAIN = [
   { k: "overview", icon: "💼", label: "התיק שלי" },
   { k: "order", icon: "📝", label: "מסחר" },
@@ -26,13 +27,14 @@ const MAIN = [
   { k: "more", icon: "☰", label: "עוד" },
 ] as const;
 const MORE: { k: Tab; label: string; timeOnly?: boolean }[] = [
+  { k: "plans", label: "🔁 תוכניות קבועות" },
   { k: "journal", label: "📓 יומן" },
   { k: "cash", label: "💱 מזומן ומט\"ח" },
   { k: "tax", label: "🧾 מס ועלויות" },
   { k: "report", label: "📊 דו\"ח המסע", timeOnly: true },
   { k: "details", label: "⚙️ פרטי התיק" },
 ];
-const mainOf = (t: Tab) => (["journal", "cash", "tax", "report", "details"].includes(t) ? "more" : t);
+const mainOf = (t: Tab) => (["plans", "journal", "cash", "tax", "report", "details"].includes(t) ? "more" : t);
 
 export default function PortfolioScreen() {
   const { id } = useParams<{ id: string }>();
@@ -224,6 +226,7 @@ export default function PortfolioScreen() {
         )}
         {tab === "history" && <HistoryPanel id={id} view={v} onChange={load} />}
         {tab === "tax" && <TaxPanel view={v} />}
+        {tab === "plans" && <PlansPanel id={id} view={v} onChange={load} prefillSymbol={sp.get("tab") === "plans" ? sp.get("symbol") : null} />}
         {tab === "chart" && <JourneyChart id={id} version={version} />}
         {tab === "report" && <ReportPanel id={id} version={version} />}
         {tab === "details" && (
@@ -232,7 +235,9 @@ export default function PortfolioScreen() {
             <div>נפתח ב-<span className="num">{dateHe(p.startDate)}</span> עם <span className="num">{money(p.initialCapital, "ILS", 0)}</span></div>
             {isTime && <div>סוף המסע: <span className="num">{p.endDate ? dateHe(p.endDate) : "עד היום"}</span></div>}
             <div>עמלות: {p.fees.kind === "bank" ? "🏦 בנק" : p.fees.kind === "online" ? "💻 ברוקר אונליין" : p.fees.kind === "app" ? "📱 אפליקציה" : "✏️ מותאם"} ({p.fees.app ? <>בארה&quot;ב {p.fees.app.freeActions} פעולות או {p.fees.app.freeShares} מניות בחודש חינם, ואז ${p.fees.app.perShare} למניה, מינימום ${p.fees.app.min}</> : <>קנייה/מכירה בארה&quot;ב {p.fees.usPct}%, מינימום ${p.fees.usMin}</>} · המרה {p.fees.fxPct}% · משמרת {p.fees.custodyPctYear}% לשנה)</div>
-            {p.deposit && <div>הפקדה: <span className="num">{money(p.deposit.amount, "ILS", 0)}</span> ב-{p.deposit.day} לחודש{p.deposit.autoBuy && <> · קנייה אוטומטית של <b className="num">{p.deposit.autoBuy}</b></>}</div>}
+            {p.plans.map((pl) => (
+              <div key={pl.id}>🔁 {pl.name}: <span className="num">{money(pl.amount, "ILS", 0)}</span> {planWhen(pl)}{pl.status === "paused" && " (מושהית)"}</div>
+            ))}
             <div>מדד השוואה: {p.benchmark === "TA125" ? "ת\"א-125" : "S&P 500"}</div>
             <button className="text-xs text-down underline pt-3" onClick={remove}>מחיקת התיק</button>
           </div>

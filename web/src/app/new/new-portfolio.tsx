@@ -236,7 +236,7 @@ function NewPortfolio() {
             מספרים טיפוסיים להמחשה. שינוי של ערך הופך את הפרופיל ל&quot;מותאם&quot;. כשתקבל הצעה מבנק או מברוקר, הקלד כאן את המספרים שלה.
           </p>
 
-          <h3 className="font-semibold pt-2">3. הפקדה חודשית</h3>
+          <h3 className="font-semibold pt-2">3. תוכנית השקעה קבועה</h3>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={depOn} onChange={(e) => setDepOn(e.target.checked)} /> להפקיד כל חודש
           </label>

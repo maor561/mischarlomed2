@@ -56,9 +56,9 @@ export default function PortfolioList() {
             </div>
             <div className="text-sm text-muted">
               הון התחלתי <span className="num">{money(p.initialCapital, "ILS", 0)}</span> · {FEE_HE[p.fees.kind]}
-              {p.deposit && (
+              {p.plans.some((x) => x.status === "active") && (
                 <>
-                  {" "}· הפקדה <span className="num">{money(p.deposit.amount, "ILS", 0)}</span> בחודש
+                  {" "}· 🔁 {p.plans.filter((x) => x.status === "active").length} תוכניות קבועות
                 </>
               )}
             </div>

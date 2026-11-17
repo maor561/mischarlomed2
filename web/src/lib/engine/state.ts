@@ -79,6 +79,7 @@ export function apply(s: State, e: LedgerEntry): void {
   s.cash.ILS = round2(s.cash.ILS + e.cashIls);
   s.cash.USD = round2(s.cash.USD + e.cashUsd);
   if (["split", "dividend", "deposit", "custody"].includes(e.kind)) s.done.add(eventKey(e.kind, e.symbol, e.d));
+  if (e.meta.planId != null) s.done.add(eventKey("plan", String(e.meta.planId), e.d));
 
   switch (e.kind) {
     case "fx":

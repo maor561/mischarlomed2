@@ -21,6 +21,7 @@ const KIND = {
   dividend: { label: "דיבידנד", cls: "bg-brand-soft text-brand" },
   split: { label: "פיצול", cls: "bg-time-soft text-time" },
   custody: { label: "דמי משמרת", cls: "bg-bg" },
+  plan: { label: "תוכנית", cls: "bg-brand-soft text-brand" },
 };
 
 function orderText(o: Order) {
@@ -34,7 +35,7 @@ function entryText(e: LedgerEntry): { details: string; total: string; fee: strin
   const nf = Number(e.meta.feeNative ?? 0);
   switch (e.kind) {
     case "deposit":
-      return { details: e.meta.initial ? "הון התחלתי" : "הפקדה חודשית", total: "+" + money(e.cashIls), fee: "", tax: "" };
+      return { details: e.meta.initial ? "הון התחלתי" : e.meta.plan ? `תוכנית "${e.meta.plan}"` : "הפקדה חודשית", total: "+" + money(e.cashIls), fee: "", tax: "" };
     case "fx": {
       const from = e.meta.from as string;
       const to = from === "ILS" ? "USD" : "ILS";
@@ -55,6 +56,8 @@ function entryText(e: LedgerEntry): { details: string; total: string; fee: strin
       const r = Number(e.meta.ratio);
       return { details: `${e.symbol} פוצלה ${r >= 1 ? `${r}:1` : `1:${Math.round(1 / r)}`} · ${e.meta.before} מניות הן עכשיו ${e.meta.after}`, total: Number(e.meta.cashInLieu) ? "+" + money(Number(e.meta.cashInLieu), ccy) : "", fee: "", tax: "" };
     }
+    case "plan":
+      return { details: `תוכנית "${e.meta.plan}" מהמזומן${e.meta.skipped ? ` · דולגה: ${e.meta.skipped}` : ` · ${money(Number(e.meta.amount), "ILS", 0)}`}`, total: "", fee: "", tax: "" };
     case "custody":
       return { details: `רבעון שהסתיים · על שווי ${money(Number(e.meta.valueIls), "ILS", 0)}`, total: money(e.cashIls), fee: "", tax: "" };
   }

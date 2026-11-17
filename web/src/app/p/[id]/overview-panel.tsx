@@ -118,9 +118,10 @@ function entryLine(e: LedgerEntry): string {
     case "sell": return `💼 מכירה ${-e.qty} ${e.symbol} ב-${money(e.price, ccy)}`;
     case "dividend": return `💵 דיבידנד ${e.symbol}: ${signed(ccy === "USD" ? e.cashUsd : e.cashIls, ccy)} נטו`;
     case "split": return `✂️ ${e.symbol} פוצלה: ${e.meta.before} → ${e.meta.after} מניות`;
-    case "deposit": return `🏦 הפקדה ${money(e.cashIls, "ILS", 0)}`;
+    case "deposit": return e.meta.plan ? `🔁 תוכנית "${e.meta.plan}": הפקדה ${money(e.cashIls, "ILS", 0)}` : `🏦 הפקדה ${money(e.cashIls, "ILS", 0)}`;
     case "fx": return `💱 המרה ${money(Number(e.meta.amount), String(e.meta.from), 0)}`;
     case "custody": return `🧾 דמי משמרת ${money(e.fee)}`;
+    case "plan": return e.meta.skipped ? `⚠️ תוכנית "${e.meta.plan}" דולגה` : `🔁 תוכנית "${e.meta.plan}"`;
   }
 }
 
@@ -363,7 +364,7 @@ function MentorCard({ v, journal: j, onTab }: { v: PortfolioView; journal: Journ
     notes.push({ level: "warn", icon: "⏰", title: `${j.dueCount} עסקאות מחכות לבדיקה`, body: due, go: true });
   }
   if (v.positions.length && cashPct > 50) {
-    notes.push({ level: "warn", icon: "💤", title: `${Math.round(cashPct)}% מהתיק במזומן`, body: "זו החלטה? אם כן, כתוב אותה ביומן. אם לא, כדאי לחשוב מה התוכנית לכסף הזה." });
+    notes.push({ level: "warn", icon: "💤", title: `${Math.round(cashPct)}% מהתיק במזומן`, body: v.portfolio.plans.some((x) => x.status === "active" && x.source === "cash") ? "יש לך תוכנית קבועה שמשקיעה מהמזומן בהדרגה. אם זו הכוונה, הכול בסדר." : "זו החלטה? אם כן, כתוב אותה ביומן. אם לא, אפשר להשקיע בהדרגה עם תוכנית קבועה מהמזומן (עוד ← תוכניות קבועות)." });
   }
   if (!v.positions.length) {
     notes.push({ level: "info", icon: "👋", title: "עוד לא קנית כלום", body: "התחל בפקודה אחת, וכתוב למה. המנטור יגיב לנימוק שלך, וביומן תוכל לחזור אליו אחר כך." });

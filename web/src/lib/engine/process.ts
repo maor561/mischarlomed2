@@ -8,7 +8,7 @@
  */
 import { GTC_DAYS, RESERVE_BUFFER, TAX_RATE, addDays, convert, daysInMonth, round2, tradeFee } from "./money";
 import { apply, eventKey, fifoCost, monthUsage, taxDelta, type State } from "./state";
-import type { Bar, Ccy, FeeProfile, LedgerEntry, Market, MonthUsage, Order, OrderType, Portfolio } from "./types";
+import type { Bar, Ccy, FeeProfile, LedgerEntry, Market, MonthUsage, Order, OrderType, Plan, Portfolio } from "./types";
 
 export type Ctx = {
   p: Portfolio;
@@ -217,30 +217,60 @@ function dividends(ctx: Ctx, d: string) {
   }
 }
 
-function deposit(ctx: Ctx, d: string) {
-  const dep = ctx.p.deposit;
-  if (!dep || dep.amount <= 0 || d <= ctx.p.startDate) return;
-  if (Number(d.slice(8)) !== Math.min(dep.day, daysInMonth(d))) return;
-  if (ctx.s.done.has(eventKey("deposit", null, d))) return;
-  push(ctx, { d, kind: "deposit", symbol: null, qty: 0, price: null, cashIls: dep.amount, cashUsd: 0, fee: 0, tax: 0, fxRate: null, orderId: null, meta: { monthly: true } });
-  if (!dep.autoBuy) return;
+/** האם התוכנית אמורה לרוץ ביום d */
+export function planDue(plan: Plan, d: string): boolean {
+  if (plan.status !== "active" || plan.amount <= 0 || d <= plan.startD) return false;
+  const wd = new Date(d + "T12:00:00Z").getUTCDay();
+  if (plan.freq === "daily") return wd >= 1 && wd <= 5;
+  if (plan.freq === "weekly") return wd === plan.day;
+  return Number(d.slice(8)) === Math.min(plan.day, daysInMonth(d));
+}
 
-  const ccy = ctx.m.currency(dep.autoBuy);
-  let budget = dep.amount;
-  if (ccy === "USD") {
-    const fx = ctx.m.fx(d);
-    const c = convert(ctx.p.fees, "ILS", dep.amount, fx);
-    push(ctx, { d, kind: "fx", symbol: null, qty: 0, price: null, cashIls: -dep.amount, cashUsd: c.received, fee: c.fee, tax: 0, fxRate: fx, orderId: null, meta: { from: "ILS", amount: dep.amount, received: c.received, auto: true } });
-    budget = c.received;
+/** תוכניות השקעה קבועות (D31): הפקדה (או שימוש במזומן), המרה אוטומטית לדולרים, ופקודת קנייה לפי סכום לכל נייר */
+function plans(ctx: Ctx, d: string) {
+  if (d <= ctx.p.startDate) return;
+  for (const plan of ctx.p.plans ?? []) {
+    if (!planDue(plan, d)) continue;
+    if (ctx.s.done.has(eventKey("plan", String(plan.id), d))) continue;
+    if (plan.migrated && ctx.s.done.has(eventKey("deposit", null, d))) continue;
+    const meta = { planId: plan.id, plan: plan.name, amount: plan.amount };
+    if (plan.source === "deposit") {
+      push(ctx, { d, kind: "deposit", symbol: null, qty: 0, price: null, cashIls: plan.amount, cashUsd: 0, fee: 0, tax: 0, fxRate: null, orderId: null, meta: { ...meta, monthly: true } });
+    } else {
+      const free = availableCash(ctx, "ILS");
+      if (free < plan.amount - 0.005) {
+        push(ctx, { d, kind: "plan", symbol: null, qty: 0, price: null, cashIls: 0, cashUsd: 0, fee: 0, tax: 0, fxRate: null, orderId: null, meta: { ...meta, skipped: `אין מספיק שקלים פנויים (פנוי ${round2(free)})` } });
+        continue;
+      }
+      push(ctx, { d, kind: "plan", symbol: null, qty: 0, price: null, cashIls: 0, cashUsd: 0, fee: 0, tax: 0, fxRate: null, orderId: null, meta });
+    }
+    const items = plan.items.filter((i) => i.pct > 0);
+    if (!items.length) continue;
+    const ils = (i: { pct: number }) => round2((plan.amount * i.pct) / 100);
+    // חלק הדולרים מומר בבת אחת, ומתחלק בין הניירות לפי האחוזים
+    const usd = items.filter((i) => ctx.m.currency(i.symbol) === "USD");
+    const usdIls = round2(usd.reduce((a, i) => a + ils(i), 0));
+    let usdBudget = 0;
+    if (usdIls > 0) {
+      const fx = ctx.m.fx(d);
+      const c = convert(ctx.p.fees, "ILS", usdIls, fx);
+      push(ctx, { d, kind: "fx", symbol: null, qty: 0, price: null, cashIls: -usdIls, cashUsd: c.received, fee: c.fee, tax: 0, fxRate: fx, orderId: null, meta: { from: "ILS", amount: usdIls, received: c.received, auto: true, planId: plan.id } });
+      usdBudget = c.received;
+    }
+    for (const i of items) {
+      const ccy = ctx.m.currency(i.symbol);
+      const budget = ccy === "USD" ? round2((usdBudget * ils(i)) / usdIls) : ils(i);
+      if (!(budget > 0)) continue;
+      const o: Order = {
+        id: ctx.nextTempId--, portfolioId: ctx.p.id, createdD: d, activeFrom: addDays(d, 1), liveToday: false,
+        side: "buy", symbol: i.symbol, currency: ccy, qty: null, budget, type: "market", price: null,
+        validity: "day", expiresD: null, status: "pending", reason: null, filledD: null, fillPrice: null, fillQty: null,
+        reserved: budget, why: `תוכנית קבועה "${plan.name}": ${i.pct}% מ-₪${plan.amount}`, exitPlan: null, source: "auto", splitsApplied: [],
+      };
+      ctx.orders.push(o);
+      ctx.newOrders.push(o);
+    }
   }
-  const o: Order = {
-    id: ctx.nextTempId--, portfolioId: ctx.p.id, createdD: d, activeFrom: addDays(d, 1), liveToday: false,
-    side: "buy", symbol: dep.autoBuy, currency: ccy, qty: null, budget, type: "market", price: null,
-    validity: "day", expiresD: null, status: "pending", reason: null, filledD: null, fillPrice: null, fillQty: null,
-    reserved: budget, why: "הוראת קבע: קנייה אוטומטית מההפקדה החודשית", exitPlan: null, source: "auto", splitsApplied: [],
-  };
-  ctx.orders.push(o);
-  ctx.newOrders.push(o);
 }
 
 function orders(ctx: Ctx, d: string) {
@@ -269,7 +299,7 @@ export function processDay(ctx: Ctx, d: string) {
   custody(ctx, d);
   splits(ctx, d);
   dividends(ctx, d);
-  deposit(ctx, d);
+  plans(ctx, d);
   orders(ctx, d);
   expire(ctx, d);
 }

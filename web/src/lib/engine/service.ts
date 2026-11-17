@@ -7,7 +7,7 @@ import { dividends as getDividends, getHistory, getInstrument, getQuote, splits 
 import { GTC_DAYS, addDays, convert, round2, todayIL, toIls, tradeFee } from "./money";
 import { availableCash, estimate, fill, makeCtx, processDay, processLive, processRange, push, roundQ, triggerOnPrice, validateInput, type Ctx, type Estimate, type OrderInput } from "./process";
 import { carryLossInto, monthUsage, replay, type State } from "./state";
-import { BENCH, FEE_PRESETS, type Bar, type Benchmark, type Ccy, type FeeProfile, type LedgerEntry, type Market, type MonthlyDeposit, type MonthUsage, type Order, type Portfolio } from "./types";
+import { BENCH, FEE_PRESETS, type Bar, type Benchmark, type Ccy, type FeeProfile, type LedgerEntry, type Market, type MonthlyDeposit, type MonthUsage, type Plan, type PlanFreq, type Order, type Portfolio } from "./types";
 import { CALM, EVENTS, STORMY } from "../timemachine/events";
 import { getInfo, sectorHe } from "../market/info";
 import { mentorOnOrder, type MentorNote, type ReasonTag } from "../mentor/rules";
@@ -25,7 +25,7 @@ function rowToPortfolio(r: R): Portfolio {
     id: Number(r.id), name: String(r.name), mode: r.mode as Portfolio["mode"],
     startDate: String(r.start_date), simDate: String(r.sim_date), processedThrough: String(r.processed_through),
     initialCapital: Number(r.initial_capital), fees: json<FeeProfile>(r.fees, FEE_PRESETS.online),
-    deposit: json<MonthlyDeposit | null>(r.deposit, null), createdAt: String(r.created_at),
+    deposit: json<MonthlyDeposit | null>(r.deposit, null), plans: json<Plan[]>(r.plans, []), createdAt: String(r.created_at),
     endDate: (r.end_date as string) ?? null, blind: Boolean(r.blind), periodName: (r.period_name as string) ?? null,
     benchmark: (r.benchmark as Benchmark) ?? "SPY", nav: Number(r.nav ?? 1), navPeak: Number(r.nav_peak ?? 1),
     lastValue: num(r.last_value), ddAlerted: Boolean(r.dd_alerted), lastMarketStop: (r.last_market_stop as string) ?? null,
@@ -53,7 +53,7 @@ function rowToEntry(r: R): LedgerEntry {
   };
 }
 
-const PF_COLS = `id,name,mode,start_date::text AS start_date,sim_date::text AS sim_date,processed_through::text AS processed_through,initial_capital,fees,deposit,created_at::text AS created_at,
+const PF_COLS = `id,name,mode,start_date::text AS start_date,sim_date::text AS sim_date,processed_through::text AS processed_through,initial_capital,fees,deposit,plans,created_at::text AS created_at,
   end_date::text AS end_date,blind,period_name,benchmark,nav,nav_peak,last_value,dd_alerted,last_market_stop::text AS last_market_stop`;
 const ORDER_COLS = `id,portfolio_id,created_d::text AS created_d,active_from::text AS active_from,live_today,side,symbol,currency,qty,budget,type,price,validity,expires_d::text AS expires_d,status,reason,filled_d::text AS filled_d,fill_price,fill_qty,reserved,why,exit_plan,source,splits_applied,tags,mentor`;
 const LEDGER_COLS = `id,portfolio_id,d::text AS d,kind,symbol,qty,price,cash_ils,cash_usd,fee,tax,fx_rate,order_id,meta`;
@@ -201,7 +201,7 @@ async function load(id: number, extraSymbols: string[] = [], to?: string): Promi
   const s = replay(await loadLedger(id));
   const pending = await loadOrders(id, true);
   const syms = new Set<string>([...s.positions.keys(), ...pending.map((o) => o.symbol), ...extraSymbols]);
-  if (p.deposit?.autoBuy) syms.add(p.deposit.autoBuy);
+  for (const plan of p.plans) if (plan.status === "active") for (const it of plan.items) syms.add(it.symbol);
   const end = to ?? (p.mode === "live" ? todayIL() : p.simDate);
   const m = await buildMarket(p, syms, end);
   return { p, s, pending, m, ctx: makeCtx(p, s, m, pending) };
@@ -282,21 +282,23 @@ export async function createPortfolio(i: CreateInput): Promise<number> {
       endDate = end <= yesterday ? end : null; // מסע שעובר את ההווה נגמר היום
     }
   }
-  if (i.deposit) {
-    if (!(i.deposit.amount > 0)) i.deposit = null;
-    else if (!(i.deposit.day >= 1 && i.deposit.day <= 31)) throw new UserError("יום ההפקדה בין 1 ל-31");
-    else if (i.deposit.autoBuy) {
-      const meta = await getInstrument(i.deposit.autoBuy);
-      if (!meta) throw new UserError(`לא נמצא נייר ${i.deposit.autoBuy} להוראת הקבע`);
-      i.deposit.autoBuy = meta.symbol;
-    }
+  // האשף שולח עדיין "הפקדה חודשית"; היא נשמרת כתוכנית השקעה קבועה (D31)
+  const plans: Plan[] = [];
+  if (i.deposit && i.deposit.amount > 0) {
+    const dep = i.deposit;
+    plans.push(
+      await checkPlan(
+        { name: dep.autoBuy ? `הוראת קבע ${dep.autoBuy}` : "הפקדה חודשית", amount: dep.amount, freq: "monthly", day: dep.day, items: dep.autoBuy ? [{ symbol: dep.autoBuy, pct: 100 }] : [], source: "deposit" },
+        1, start, null,
+      ),
+    );
   }
   const processed = i.mode === "time" ? start : addDays(start, -1);
   const benchmark: Benchmark = i.benchmark === "TA125" ? "TA125" : "SPY";
   const [r] = await query<{ id: number }>(
-    `INSERT INTO portfolios (name,mode,start_date,sim_date,processed_through,initial_capital,fees,deposit,end_date,blind,period_name,benchmark,last_value)
+    `INSERT INTO portfolios (name,mode,start_date,sim_date,processed_through,initial_capital,fees,plans,end_date,blind,period_name,benchmark,last_value)
      VALUES ($1,$2,$3,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9,$10,$11,$5) RETURNING id`,
-    [i.name.trim(), i.mode, start, processed, i.capital, JSON.stringify(i.fees), i.deposit ? JSON.stringify(i.deposit) : null, endDate, blind, periodName, benchmark],
+    [i.name.trim(), i.mode, start, processed, i.capital, JSON.stringify(i.fees), JSON.stringify(plans), endDate, blind, periodName, benchmark],
   );
   const id = Number(r.id);
   await query(
@@ -304,6 +306,69 @@ export async function createPortfolio(i: CreateInput): Promise<number> {
     [id, start, i.capital],
   );
   return id;
+}
+
+/* ---------- תוכניות השקעה קבועות (D31) ---------- */
+
+export type PlanInput = { id?: number; name: string; amount: number; freq: PlanFreq; day: number; items: { symbol: string; pct: number }[]; source: "deposit" | "cash" };
+
+/** בודק ומנרמל תוכנית. simDate: היום שבו "נמצאים" (נייר שעוד לא נסחר אז, לא ייכנס) */
+async function checkPlan(i: PlanInput, id: number, simDate: string, prev: Plan | null): Promise<Plan> {
+  const name = (i.name ?? "").trim() || "תוכנית קבועה";
+  if (!(i.amount >= 10 && i.amount <= 1_000_000)) throw new UserError("סכום התוכנית בין ₪10 ל-₪1,000,000");
+  if (!["daily", "weekly", "monthly"].includes(i.freq)) throw new UserError("תדירות לא מוכרת");
+  const day = Math.round(Number(i.day));
+  if (i.freq === "monthly" && !(day >= 1 && day <= 31)) throw new UserError("יום בחודש בין 1 ל-31");
+  if (i.freq === "weekly" && !(day >= 0 && day <= 6)) throw new UserError("יום בשבוע לא תקין");
+  const source = i.source === "cash" ? "cash" : "deposit";
+  const raw = (i.items ?? []).filter((x) => x.symbol && x.pct > 0);
+  if (!raw.length && source === "cash") throw new UserError("תוכנית מהמזומן צריכה לפחות נייר אחד");
+  const items: Plan["items"] = [];
+  for (const x of raw) {
+    const meta = await getInstrument(x.symbol);
+    if (!meta) throw new UserError(`לא נמצא נייר ${x.symbol}`);
+    if (meta.firstTrade && meta.firstTrade > simDate) throw new UserError(`${meta.symbol} עוד לא נסחר ב-${simDate}`);
+    if (items.some((y) => y.symbol === meta.symbol)) throw new UserError(`${meta.symbol} מופיע פעמיים`);
+    items.push({ symbol: meta.symbol, pct: Math.round(x.pct * 100) / 100 });
+  }
+  const sum = items.reduce((a, x) => a + x.pct, 0);
+  if (items.length && Math.abs(sum - 100) > 0.01) throw new UserError(`האחוזים צריכים להסתכם ב-100% (עכשיו ${Math.round(sum * 100) / 100}%)`);
+  return { id, name, amount: round2(i.amount), freq: i.freq, day: i.freq === "daily" ? 0 : day, items, source, status: prev?.status ?? "active", startD: prev?.startD ?? simDate, ...(prev?.migrated ? { migrated: true } : {}) };
+}
+
+async function savePlans(id: number, plans: Plan[]) {
+  await query(`UPDATE portfolios SET plans=$2::jsonb WHERE id=$1`, [id, JSON.stringify(plans)]);
+}
+
+/** יצירה (בלי id) או עריכה של תוכנית. רצה רק מהיום הבא בסימולציה */
+export async function upsertPlan(id: number, input: PlanInput): Promise<Plan> {
+  return withLock(id, async () => {
+    const p = await loadPortfolio(id);
+    const today = p.mode === "live" ? todayIL() : p.simDate;
+    const prev = input.id != null ? p.plans.find((x) => x.id === input.id) ?? null : null;
+    if (input.id != null && !prev) throw new UserError("התוכנית לא נמצאה");
+    const nextId = Math.max(0, ...p.plans.map((x) => x.id)) + 1;
+    const plan = await checkPlan(input, prev?.id ?? nextId, today, prev);
+    await savePlans(id, prev ? p.plans.map((x) => (x.id === prev.id ? plan : x)) : [...p.plans, plan]);
+    return plan;
+  });
+}
+
+/** השהיה / הפעלה מחדש. הפעלה מחדש לא משלימה ביצועים שהוחמצו */
+export async function setPlanStatus(id: number, planId: number, status: "active" | "paused") {
+  return withLock(id, async () => {
+    const p = await loadPortfolio(id);
+    const today = p.mode === "live" ? todayIL() : p.simDate;
+    if (!p.plans.some((x) => x.id === planId)) throw new UserError("התוכנית לא נמצאה");
+    await savePlans(id, p.plans.map((x) => (x.id === planId ? { ...x, status, ...(status === "active" ? { startD: today } : {}) } : x)));
+  });
+}
+
+export async function deletePlan(id: number, planId: number) {
+  return withLock(id, async () => {
+    const p = await loadPortfolio(id);
+    await savePlans(id, p.plans.filter((x) => x.id !== planId));
+  });
 }
 
 export async function deletePortfolio(id: number) {
