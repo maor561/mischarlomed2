@@ -12,7 +12,8 @@ import type { Order } from "@/lib/engine/types";
 import InstrumentChart from "@/components/instrument-chart";
 import MentorBox from "./mentor-box";
 
-export type OrderPrefill = { side: "buy" | "sell"; symbol: string; qty: number };
+/** qty קיים → פותחים במצב כמות; בלעדיו → לפי סכום */
+export type OrderPrefill = { side: "buy" | "sell"; symbol: string; qty?: number };
 
 const TYPES = [
   { k: "market", label: "שוק", buy: "בכל מחיר, בהקדם האפשרי", sell: "בכל מחיר, בהקדם האפשרי" },
@@ -31,6 +32,11 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
   const [side, setSide] = useState<"buy" | "sell">(prefill?.side ?? "buy");
   const [symbol, setSymbol] = useState(prefill?.symbol ?? "");
   const [qty, setQty] = useState(prefill?.qty ?? 1);
+  // D29: ברירת המחדל היא קנייה לפי סכום; פרה-פיל של כמות (למשל ממשימת שיעור) פותח במצב כמות
+  const [byAmount, setByAmount] = useState(prefill?.qty == null);
+  const [amount, setAmount] = useState(1000);
+  const [amountCcy, setAmountCcy] = useState<"ILS" | "USD">("ILS");
+  const [sellAll, setSellAll] = useState(false);
   const [type, setType] = useState<"market" | "limit" | "stop">("market");
   const [price, setPrice] = useState<number | "">("");
   const [validity, setValidity] = useState<"day" | "gtc">("day");
@@ -45,7 +51,7 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
     if (!symbol) return;
     const t = setTimeout(async () => {
       try {
-        setQ(await api<QuoteForOrder>(`/api/portfolios/${id}/quote`, { method: "POST", json: { side, symbol, qty, type, price: price === "" ? null : price, why, exitPlan } }));
+        setQ(await api<QuoteForOrder>(`/api/portfolios/${id}/quote`, { method: "POST", json: { ...sizing(), side, symbol, type, price: price === "" ? null : price, why, exitPlan } }));
         setQErr("");
       } catch (e) {
         setQ(null);
@@ -54,7 +60,14 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
     }, 350);
     return () => clearTimeout(t);
     // מחשבים מחדש גם כשהקופה משתנה (למשל אחרי המרה)
-  }, [id, side, symbol, qty, type, price, why, exitPlan, view.cash.ILS, view.cash.USD, view.pending.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, side, symbol, qty, byAmount, amount, amountCcy, sellAll, type, price, why, exitPlan, view.cash.ILS, view.cash.USD, view.pending.length]);
+
+  /** איך נקבע גודל הפקודה: מכור הכול, לפי סכום או לפי כמות */
+  function sizing() {
+    if (side === "sell" && sellAll) return { qty: null, sellAll: true };
+    return byAmount ? { qty: null, amount, amountCcy } : { qty };
+  }
 
   async function submit() {
     setBusy(true);
@@ -62,9 +75,9 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
     try {
       const o = await api<Order>(`/api/portfolios/${id}/orders`, {
         method: "POST",
-        json: { side, symbol, qty, type, price: type === "market" ? null : price === "" ? null : price, validity, why, exitPlan: exitPlan || null },
+        json: { ...sizing(), side, symbol, type, price: type === "market" ? null : price === "" ? null : price, validity, why, exitPlan: exitPlan || null },
       });
-      const what = `${side === "buy" ? "קנייה" : "מכירה"} ${o.qty} ${o.symbol}`;
+      const what = `${side === "buy" ? "קנייה" : "מכירה"} ${o.fillQty ?? o.qty ?? q?.qty ?? ""} ${o.symbol}`;
       onDone(o.status === "filled" ? `✅ ${what} בוצעה במחיר ${money(o.fillPrice, o.currency)}` : o.status === "rejected" ? `⚠️ ${what} נדחתה: ${o.reason}` : `⏳ ${what} נשלחה וממתינה לביצוע`);
     } catch (e) {
       setErr((e as Error).message);
@@ -89,7 +102,7 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
           {side === "sell" && view.positions.length > 0 ? (
             <div className="flex gap-1.5 flex-wrap mt-1">
               {view.positions.map((p) => (
-                <button key={p.symbol} className={`chip num ${symbol === p.symbol ? "chip-on" : ""}`} onClick={() => { setSymbol(p.symbol); setQty(p.qty); }}>
+                <button key={p.symbol} className={`chip num ${symbol === p.symbol ? "chip-on" : ""}`} onClick={() => { setSymbol(p.symbol); setQty(p.qty); setSellAll(true); }}>
                   {p.symbol} ({p.qty})
                 </button>
               ))}
@@ -107,7 +120,7 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
             <span className="flex-1" />
             <span className="text-2xl font-bold num">{money(q.refPrice, ccy)}</span>
             <span className="text-xs text-muted w-full">
-              {isTime ? `מחיר הסגירה ב-${dateHe(q.simDate)}` : "מחיר אחרון"} · מחזיק {q.held} מניות
+              {isTime ? `מחיר הסגירה ב-${dateHe(q.simDate)}` : "מחיר אחרון"} · מחזיק {fmtQty(q.held)} מניות
             </span>
           </div>
         )}
@@ -127,10 +140,26 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <label className="block">
-            <span className="text-xs text-muted">כמות (מניות שלמות)</span>
-            <input className="input num mt-1" type="number" min={1} step={1} value={qty} onChange={(e) => setQty(Math.max(1, Math.floor(Number(e.target.value) || 1)))} />
-          </label>
+          <div className="block">
+            <span className="text-xs text-muted flex gap-2">
+              <button className={`underline-offset-2 ${byAmount ? "font-bold text-ink" : "underline"}`} onClick={() => { setByAmount(true); setSellAll(false); }}>לפי סכום</button>
+              <button className={`underline-offset-2 ${!byAmount ? "font-bold text-ink" : "underline"}`} onClick={() => { setByAmount(false); setSellAll(false); }}>לפי כמות</button>
+              {side === "sell" && <button className={`underline-offset-2 ${sellAll ? "font-bold text-ink" : "underline"}`} onClick={() => setSellAll(true)}>מכור הכול</button>}
+            </span>
+            {side === "sell" && sellAll ? (
+              <div className="input mt-1 text-muted">כל {q ? fmtQty(q.available) : ""} המניות הפנויות</div>
+            ) : byAmount ? (
+              <div className="flex gap-1 mt-1">
+                <input className="input num" type="number" min={0} step={1} value={amount} onChange={(e) => setAmount(Math.max(0, Number(e.target.value) || 0))} />
+                <select className="input w-16" value={amountCcy} onChange={(e) => setAmountCcy(e.target.value as "ILS" | "USD")}>
+                  <option value="ILS">₪</option>
+                  <option value="USD">$</option>
+                </select>
+              </div>
+            ) : (
+              <input className="input num mt-1" type="number" min={0} step="any" value={qty} onChange={(e) => setQty(Math.max(0, Math.round((Number(e.target.value) || 0) * 1e6) / 1e6))} />
+            )}
+          </div>
           {type !== "market" ? (
             <label className="block">
               <span className="text-xs text-muted">{type === "limit" ? "מחיר לימיט" : "מחיר סטופ"} ({ccy === "USD" ? "$" : "₪"})</span>
@@ -161,30 +190,36 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
           <p className="text-sm text-muted">בחר נייר כדי לראות הערכה.</p>
         ) : (
           <>
-            <Row k={`${qty} × ${money(type === "market" || price === "" ? q.refPrice : Number(price), ccy)}`} v={money(q.gross, ccy)} />
+            <Row k={`${fmtQty(q.qty)} × ${money(type === "market" || price === "" ? q.refPrice : Number(price), ccy)}`} v={money(q.gross, ccy)} />
             <Row k="עמלה" v={money(q.fee, ccy)} />
             <Row k={side === "buy" ? "ירד מהקופה (הערכה)" : "ייכנס לקופה לפני מס (הערכה)"} v={money(q.total, ccy)} bold />
             {ccy === "USD" && <Row k="בשקלים" v={money(q.total * q.fx, "ILS")} />}
+            {q.fxPlan && (
+              <p className="text-xs rounded-lg p-2 bg-brand-soft">
+                💱 המרה אוטומטית: <span className="num">{money(q.fxPlan.amount, q.fxPlan.from)}</span> ← <span className="num">{money(q.fxPlan.received, q.fxPlan.to)}</span> (עמלת המרה <span className="num">{money(q.fxPlan.fee, q.fxPlan.from)}</span>)
+              </p>
+            )}
+            {q.minErr && <p className="text-xs text-down">{q.minErr}</p>}
             {side === "buy" && (
               <p className="text-xs text-muted">
-                {type === "limit" ? "בלימיט נשמר בקופה הסכום המלא לפי מחיר הלימיט." : <>נשמר בקופה עד הביצוע: <b className="num">{money(q.reserve, ccy)}</b> (הערכה ועוד <span className="num">10%</span>, למקרה שהמחיר יקפוץ).</>}{" "}
+                {byAmount ? <>נשמר בקופה עד הביצוע בדיוק הסכום שבחרת: <b className="num">{money(q.reserve, ccy)}</b>. הכמות נקבעת לפי מחיר הביצוע.</> : type === "limit" ? "בלימיט נשמר בקופה הסכום המלא לפי מחיר הלימיט." : <>נשמר בקופה עד הביצוע: <b className="num">{money(q.reserve, ccy)}</b> (הערכה ועוד <span className="num">10%</span>, למקרה שהמחיר יקפוץ).</>}{" "}
                 פנוי בקופה: <span className="num">{money(q.available, ccy)}</span>
               </p>
             )}
-            {side === "sell" && <p className="text-xs text-muted">מניות פנויות למכירה: {q.available}. מס רווחי הון (25% מהרווח בשקלים) ינוכה בזמן המכירה.</p>}
+            {side === "sell" && <p className="text-xs text-muted">מניות פנויות למכירה: {fmtQty(q.available)}. מס רווחי הון (25% מהרווח בשקלים) ינוכה בזמן המכירה.</p>}
             {q.shortfall > 0 && (
               <div className="text-sm rounded-lg p-2.5 bg-warn-soft text-[#6b4100]">
                 {side === "buy" ? (
                   <>
-                    חסרים <b className="num">{money(q.shortfall, ccy)}</b> בקופת ה{ccy === "USD" ? "דולרים" : "שקלים"}.
-                    {ccy === "USD" && (
+                    חסרים <b className="num">{money(q.shortfall, q.fxShortCcy ?? ccy)}</b> בקופת ה{(q.fxShortCcy ?? ccy) === "USD" ? "דולרים" : "שקלים"}.
+                    {ccy === "USD" && !q.fxShortCcy && (
                       <button className="block underline font-semibold mt-1" onClick={() => onNeedCash(shortIls)}>
                         המר <span className="num">{money(shortIls, "ILS", 0)}</span> לדולרים ←
                       </button>
                     )}
                   </>
                 ) : (
-                  <>יש לך רק {q.available} מניות פנויות.</>
+                  <>יש לך רק {fmtQty(q.available)} מניות פנויות.</>
                 )}
               </div>
             )}
@@ -192,7 +227,7 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
         )}
         {q && <MentorBox mentor={q.mentor} hasWhy={why.trim().length >= 3} />}
         {err && <div className="text-sm rounded-lg p-2.5 bg-down-soft text-down">{err}</div>}
-        <button className="btn w-full" disabled={busy || playing || !q || q.shortfall > 0 || why.trim().length < 3} onClick={submit}>
+        <button className="btn w-full" disabled={busy || playing || !q || q.shortfall > 0 || !!q.minErr || why.trim().length < 3} onClick={submit}>
           {busy ? "שולח…" : "שלח פקודה"}
         </button>
         {playing && <p className="text-xs text-time">⏸ עצור את הנגן כדי לשלוח פקודה.</p>}
@@ -200,6 +235,11 @@ export default function OrderForm({ id, view, prefill, onDone, onNeedCash, playi
       </div>
     </div>
   );
+}
+
+/** כמות מניות: עד 6 ספרות אחרי הנקודה, בלי אפסים מיותרים */
+function fmtQty(n: number) {
+  return Number(n.toFixed(6)).toLocaleString("he-IL", { maximumFractionDigits: 6 });
 }
 
 function Row({ k, v, bold }: { k: string; v: string; bold?: boolean }) {

@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>עיצוב אפליקציה — סקיצה 07</title>
+<style>
+  /* שפת עיצוב חדשה (D30): חמה, עגולה, מספר אחד גדול. שלנו, לא העתקה */
+  :root{
+    --ink:#1d1640; --ink-2:#4a4470; --muted:#8a85a6; --line:#ece8f5; --bg:#fbf8f3; --card:#ffffff;
+    --sun:#ffd23f; --sun-soft:#fff4c7; --coral:#ff7a59; --coral-soft:#ffe6de; --mint:#2ec4a6; --mint-soft:#d8f6ef;
+    --sky:#5b8cff; --sky-soft:#e3ebff; --plum:#7b5cff; --plum-soft:#ece6ff;
+    --up:#14a35a; --down:#e0453a; --r:22px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Rubik","Segoe UI",Arial,sans-serif;background:#efeaf7;color:var(--ink);font-size:14px;line-height:1.5}
+  .sketch-banner{background:#1d1640;color:#fff;text-align:center;padding:6px;font-size:12px}
+  header.top{background:#fff;border-bottom:1px solid var(--line);padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+  .logo{font-weight:800;font-size:18px}
+  nav.tabs{display:flex;gap:4px;flex-wrap:wrap}
+  nav.tabs button{border:0;background:none;padding:8px 12px;border-radius:999px;cursor:pointer;font:inherit;color:var(--muted)}
+  nav.tabs button.on{background:var(--ink);color:#fff;font-weight:600}
+  main{padding:20px;max-width:1240px;margin:auto}
+  .page{display:none}.page.on{display:block}
+  h2{font-size:19px;margin:0 0 4px}
+  .lead{color:var(--ink-2);margin:0 0 16px;max-width:820px}
+  .row{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start;justify-content:center}
+  .caption{max-width:300px}
+  .caption h3{margin:6px 0 4px;font-size:15px}
+  .caption li{margin-bottom:4px}
+  .num{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+  .up{color:var(--up)}.down{color:var(--down)}
+  .decide{border:2px dashed #c98a00;background:#fff7dc;border-radius:14px;padding:10px 14px;margin-top:18px;font-size:13px;max-width:900px;margin-inline:auto}
+  .decide b{color:#a06c00}
+  .note{font-size:12px;color:var(--muted);margin-top:24px;border-top:1px dashed #d8d2e8;padding-top:10px}
+
+  /* ===== מסגרת טלפון ===== */
+  .phone{width:340px;height:720px;background:var(--bg);border:10px solid #1d1640;border-radius:44px;overflow:hidden;position:relative;box-shadow:0 20px 50px rgba(29,22,64,.25);flex:none}
+  .scr{height:100%;overflow:hidden;padding:14px 14px 80px}
+  .tabbar{position:absolute;bottom:0;inset-inline:0;height:64px;background:#fff;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);text-align:center;font-size:10.5px;color:var(--muted)}
+  .tabbar div{padding-top:8px}
+  .tabbar span{display:block;font-size:19px;line-height:1.1;filter:grayscale(1);opacity:.6}
+  .tabbar .on{color:var(--ink);font-weight:700}
+  .tabbar .on span{filter:none;opacity:1}
+  .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px;font-size:12px;font-weight:600}
+  .card{background:var(--card);border-radius:var(--r);padding:14px;box-shadow:0 2px 0 rgba(29,22,64,.04)}
+  .muted{color:var(--muted)}
+  .big{font-size:36px;font-weight:800;letter-spacing:-.5px}
+  .btn{border:0;border-radius:999px;padding:12px 18px;font:inherit;font-weight:700;cursor:pointer}
+  .btn.primary{background:var(--ink);color:#fff}
+  .btn.sun{background:var(--sun);color:var(--ink)}
+  .qa{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+  .qa div{border-radius:18px;padding:10px 6px;text-align:center;font-size:12px;font-weight:600}
+  .qa b{display:block;font-size:20px}
+  .hold{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .hold:last-child{border:0}
+  .logo-dot{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:12px;color:#fff;flex:none}
+  .hold .mid{flex:1;min-width:0}
+  .hold .mid b{display:block;font-size:14px}
+  .hold .end{text-align:left}
+  .spark{width:100%;height:110px}
+  .timepill{display:flex;align-items:center;gap:8px;background:var(--plum-soft);color:var(--plum);border-radius:999px;padding:6px 6px 6px 12px;font-size:12px;font-weight:600;margin-bottom:10px}
+  .timepill .play{width:28px;height:28px;border-radius:50%;background:var(--plum);color:#fff;display:grid;place-items:center;font-size:12px}
+  .nudge{border-radius:18px;padding:10px 12px;font-size:12.5px;display:flex;gap:8px;align-items:flex-start;margin-top:10px}
+  .seg{display:flex;background:#f1edf8;border-radius:999px;padding:3px}
+  .seg span{flex:1;text-align:center;padding:6px;border-radius:999px;font-size:12px;font-weight:600;color:var(--muted)}
+  .seg span.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+  /* חלון קנייה מלמטה */
+  .dim{position:absolute;inset:0;background:rgba(29,22,64,.35)}
+  .sheet{position:absolute;inset-inline:0;bottom:0;background:#fff;border-radius:28px 28px 0 0;padding:14px 16px 16px}
+  .grab{width:40px;height:5px;border-radius:3px;background:#ddd6ee;margin:0 auto 10px}
+  .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+  .keypad div{background:#f6f3fb;border-radius:14px;text-align:center;padding:9px 0;font-size:18px;font-weight:600}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{border-radius:999px;padding:5px 11px;font-size:12px;font-weight:600;background:#f1edf8;color:var(--ink-2)}
+  .chip.on{background:var(--ink);color:#fff}
+
+  /* חנות */
+  .coll{border-radius:22px;padding:12px;min-height:110px;display:flex;flex-direction:column;justify-content:space-between}
+  .coll b{font-size:14px}
+  .coll .ico{font-size:26px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .alloc{display:flex;align-items:center;gap:8px;padding:8px 0}
+  .alloc .bar{flex:1;height:8px;border-radius:4px;background:#f1edf8;overflow:hidden}
+  .alloc .bar i{display:block;height:100%}
+
+  /* מחשב */
+  .desk{width:100%;max-width:1100px;background:var(--bg);border:10px solid #1d1640;border-radius:22px;overflow:hidden;box-shadow:0 20px 50px rgba(29,22,64,.25)}
+  .desk .side{width:200px;background:#fff;border-inline-end:1px solid var(--line);padding:18px 12px}
+  .desk .side div{padding:9px 12px;border-radius:12px;font-weight:600;color:var(--ink-2);margin-bottom:2px}
+  .desk .side div.on{background:var(--ink);color:#fff}
+</style>
+</head>
+<body>
+<div class="sketch-banner">סקיצה 07 · גרסה 2, עיצוב אפליקציה לטלפון. בהשראת אפליקציות השקעה לצרכנים, העיצוב שלנו. המספרים להמחשה.</div>
+<header class="top">
+  <div class="logo">📈 מסחר־לומד</div>
+  <nav class="tabs">
+    <button class="on" data-p="home">① בית</button>
+    <button data-p="buy">② קנייה לפי סכום</button>
+    <button data-p="stock">③ דף נייר</button>
+    <button data-p="store">④ חנות</button>
+    <button data-p="plan">⑤ תוכנית קבועה</button>
+    <button data-p="more">⑥ עוד ומתקדם</button>
+    <button data-p="desk">⑦ במחשב</button>
+  </nav>
+</header>
+
+<main>
+<!-- ① בית -->
+<section class="page on" id="home">
+  <h2>מסך הבית</h2>
+  <p class="lead">מספר אחד גדול, שינוי יומי, גרף, ושלוש פעולות. ההחזקות מוצגות ככרטיסים ולא כטבלה. מכונת הזמן נכנסת כ"גלולה" אחת בראש המסך, והמנטור והשיעור הבא מופיעים ככרטיסים קטנים.</p>
+  <div class="row">
+    <div class="phone"><div class="scr">
+      <div class="timepill"><span class="play">▶</span><span style="flex:1">⏳ מכונת זמן · <span class="num">9.3.2020</span></span><span class="pill" style="background:#fff;color:var(--plum)">+שבוע</span></div>
+      <div class="muted" style="font-size:12px">שווי התיק</div>
+      <div class="big num">₪54,255</div>
+      <div><span class="pill" style="background:#e6f6ec;color:var(--up)">▲ <span class="num">₪312 (+0.6%)</span> היום</span> <span class="muted" style="font-size:12px">· <span class="num">+8.5%</span> מההתחלה</span></div>
+      <svg class="spark" viewBox="0 0 300 110" preserveAspectRatio="none"><defs><linearGradient id="g1" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#7b5cff" stop-opacity=".25"/><stop offset="1" stop-color="#7b5cff" stop-opacity="0"/></linearGradient></defs><path d="M0,70 40,62 80,66 110,90 140,80 180,55 220,48 260,40 300,30 300,110 0,110Z" fill="url(#g1)"/><polyline points="0,70 40,62 80,66 110,90 140,80 180,55 220,48 260,40 300,30" fill="none" stroke="#7b5cff" stroke-width="3"/></svg>
+      <div class="seg"><span>שבוע</span><span>חודש</span><span class="on">שנה</span><span>הכול</span></div>
+      <div class="qa">
+        <div style="background:var(--sun)"><b>＋</b>להשקיע</div>
+        <div style="background:var(--mint-soft);color:#0c7a66"><b>🔁</b>תוכנית קבועה</div>
+        <div style="background:var(--coral-soft);color:#b5401f"><b>🛍️</b>חנות</div>
+      </div>
+      <div class="card" style="padding:6px 14px">
+        <div class="hold"><div class="logo-dot" style="background:#5b8cff">VOO</div><div class="mid"><b>S&amp;P 500</b><span class="muted" style="font-size:12px">קרן סל · 72%</span></div><div class="end"><b class="num">₪39,420</b><div class="num up" style="font-size:12px">+11.2%</div></div></div>
+        <div class="hold"><div class="logo-dot" style="background:#1d1640">A</div><div class="mid"><b>Apple</b><span class="muted" style="font-size:12px"><span class="num">4.98</span> מניות · 9%</span></div><div class="end"><b class="num">₪4,610</b><div class="num up" style="font-size:12px">+54.0%</div></div></div>
+      </div>
+    </div>
+    <div class="tabbar"><div class="on"><span>🏠</span>בית</div><div><span>🛍️</span>חנות</div><div><span>🔁</span>תוכניות</div><div><span>🎓</span>ללמוד</div><div><span>☰</span>עוד</div></div>
+    </div>
+
+    <div class="phone"><div class="scr" style="padding-top:20px">
+      <div class="card">
+        <b>🤖 המנטור</b>
+        <div class="nudge" style="background:#fff3df;color:#8a5a00;margin-top:8px">⏰ <span>2 עסקאות מחכות לבדיקה ביומן</span></div>
+        <div class="nudge" style="background:var(--mint-soft);color:#0c6656">📈 <span>"טווח ארוך" מנצח אצלך את "פחד לפספס"</span></div>
+      </div>
+      <div class="card" style="margin-top:10px;background:var(--plum);color:#fff">
+        <div style="font-size:12px;opacity:.8">🎓 השיעור הבא · 7/28</div>
+        <b style="font-size:16px">למה לא מוכרים בפאניקה</b>
+        <div style="margin-top:10px"><span class="pill" style="background:#fff;color:var(--plum)">להתחיל · 8 דק'</span></div>
+      </div>
+      <div class="card" style="margin-top:10px">
+        <b>🔁 התוכנית הקבועה</b>
+        <div class="muted" style="font-size:12px">₪500 כל חודש · 70% VOO · 30% QQQ</div>
+        <div style="font-size:12px;margin-top:6px">הבאה: <b class="num">1.4.2020</b></div>
+      </div>
+      <div class="card" style="margin-top:10px">
+        <b>💵 מזומן פנוי</b> <span class="num" style="float:left;font-weight:700">₪8,515</span>
+        <div class="muted" style="font-size:12px">שקלים ודולרים יחד. ההמרה בקנייה אוטומטית</div>
+      </div>
+      <p class="muted" style="text-align:center;font-size:12px;margin-top:14px">(המשך המסך כשגוללים)</p>
+    </div>
+    <div class="tabbar"><div class="on"><span>🏠</span>בית</div><div><span>🛍️</span>חנות</div><div><span>🔁</span>תוכניות</div><div><span>🎓</span>ללמוד</div><div><span>☰</span>עוד</div></div>
+    </div>
+
+    <div class="caption">
+      <h3>מה השתנה מהיום</h3>
+      <ul style="padding-inline-start:18px">
+        <li>4 כרטיסי מספרים → מספר אחד גדול ושינוי יומי</li>
+        <li>טבלת החזקות → רשימה עם "לוגו" צבעוני (אות ראשונה), שווי ותשואה</li>
+        <li>שתי קופות → "מזומן פנוי" אחד. הפירוט נמצא ב"מתקדם"</li>
+        <li>פס הזמן → גלולה אחת. לחיצה פותחת את כל הנגן</li>
+        <li>הפיזור (עוגה, מטבע, סקטור) עובר ל"עוד ← ניתוח התיק"</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ② קנייה -->
+<section class="page" id="buy">
+  <h2>קנייה לפי סכום (D29)</h2>
+  <p class="lead">"להשקיע" פותח חלון מלמטה עם מקלדת. מקלידים סכום, והמערכת מראה כמה מניות תקבל, כולל שבר. אם צריך דולרים, הם מומרים אוטומטית, וזה כתוב בגלוי. הנימוק והמנטור נשארים, בגרסה קצרה.</p>
+  <div class="row">
+    <div class="phone"><div class="scr">
+      <div class="dim"></div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div style="display:flex;align-items:center;gap:10px"><div class="logo-dot" style="background:#1d1640">A</div><div><b>קנייה · Apple</b><div class="muted num" style="font-size:12px">$266.17 למניה</div></div></div>
+        <div class="seg" style="margin-top:10px"><span class="on">לפי סכום</span><span>לפי כמות</span></div>
+        <div style="text-align:center;margin-top:12px"><div class="big num">₪500</div>
+          <div class="seg" style="width:120px;margin:4px auto"><span class="on">₪</span><span>$</span></div>
+          <div class="muted" style="font-size:12.5px">תקבל בערך <b class="num" style="color:var(--ink)">0.5367</b> מניות</div>
+        </div>
+        <div class="chips" style="justify-content:center;margin-top:8px"><span class="chip">₪100</span><span class="chip on">₪500</span><span class="chip">₪1,000</span><span class="chip">הכול</span></div>
+        <div style="font-size:12px;background:#f8f6fc;border-radius:14px;padding:8px 10px;margin-top:10px">
+          <div style="display:flex;justify-content:space-between"><span>המרה לדולרים (אוטומטית)</span><span class="num">$142.85</span></div>
+          <div style="display:flex;justify-content:space-between"><span>עמלה</span><span class="up">חינם · 3 מתוך 10 החודש</span></div>
+        </div>
+        <input style="width:100%;margin-top:8px;border:1px solid var(--line);border-radius:12px;padding:8px 10px;font:inherit;font-size:12.5px" placeholder="✍️ למה? (במשפט אחד)">
+        <div class="keypad"><div>1</div><div>2</div><div>3</div><div>4</div><div>5</div><div>6</div><div>7</div><div>8</div><div>9</div><div>.</div><div>0</div><div>⌫</div></div>
+        <button class="btn primary" style="width:100%;margin-top:10px">להשקיע ₪500</button>
+      </div>
+    </div></div>
+
+    <div class="phone"><div class="scr">
+      <div class="dim"></div>
+      <div class="sheet" style="max-height:560px">
+        <div class="grab"></div>
+        <b>רגע לפני ששולחים</b>
+        <div class="nudge" style="background:var(--coral-soft);color:#9c2f14">🔥 <span><b>זה נשמע כמו FOMO.</b> "כולם קונים" זו סיבה שקשורה למחיר, לא לחברה.<br><u>📚 שיעור 21</u></span></div>
+        <div class="nudge" style="background:#fff3df;color:#8a5a00">⚖️ <span><b>אחרי הקנייה: 31% מהתיק באפל.</b> הרבה משקיעים מגבילים מניה בודדת ל-10%–25%.</span></div>
+        <div style="display:flex;gap:8px;margin-top:14px"><button class="btn primary" style="flex:1">לשלוח בכל זאת</button><button class="btn" style="flex:1;background:#f1edf8">לחשוב שוב</button></div>
+        <div class="card" style="margin-top:14px;background:#f8f6fc">
+          <b style="font-size:13px">⚙️ מתקדם</b>
+          <div class="chips" style="margin-top:8px"><span class="chip on">שוק</span><span class="chip">לימיט</span><span class="chip">סטופ</span></div>
+          <div class="muted" style="font-size:12px;margin-top:6px">תוקף, מחיר לימיט וסטופ: רק כשמצב "מתקדם" פעיל</div>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="caption">
+      <h3>חוקים</h3>
+      <ul style="padding-inline-start:18px">
+        <li>ברירת המחדל בשקלים. בדולרים מקלידים $</li>
+        <li>מינימום: $1</li>
+        <li>הכמות הסופית נקבעת בביצוע, לפי המחיר בפועל</li>
+        <li>מכירה: "מכור ₪X", או "מכור הכול"</li>
+        <li>המנטור מופיע רק אם יש לו מה להגיד, בשלב "רגע לפני ששולחים"</li>
+        <li>הנימוק עדיין חובה, אבל במשפט אחד</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ③ דף נייר -->
+<section class="page" id="stock">
+  <h2>דף נייר</h2>
+  <p class="lead">כמו היום, בעיצוב החדש: מחיר גדול, גרף, "ההחזקה שלך", ונתוני חברה בכרטיסים. כפתור "להשקיע" קבוע בתחתית המסך.</p>
+  <div class="row">
+    <div class="phone"><div class="scr">
+      <div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">→</span><div class="logo-dot" style="background:#1d1640">A</div><div><b>Apple</b><div class="muted" style="font-size:12px">AAPL · טכנולוגיה</div></div><span style="margin-inline-start:auto;font-size:18px">☆</span></div>
+      <div class="big num" style="margin-top:10px">$266.17</div>
+      <span class="pill" style="background:#fde7e5;color:var(--down)">▼ <span class="num">−7.6%</span> היום</span>
+      <svg class="spark" viewBox="0 0 300 110" preserveAspectRatio="none"><polyline points="0,80 50,70 100,55 150,40 200,30 230,35 260,70 300,85" fill="none" stroke="#e0453a" stroke-width="3"/></svg>
+      <div class="seg"><span>שבוע</span><span>חודש</span><span class="on">שנה</span><span>5 שנים</span></div>
+      <div class="card" style="margin-top:10px"><b>ההחזקה שלך</b>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:13px"><span class="muted">שווי</span><b class="num">₪4,610</b></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span class="muted">כמות</span><span class="num">4.98</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span class="muted">רווח</span><span class="num up">+₪1,612 (+54%)</span></div>
+      </div>
+      <div class="grid2" style="margin-top:10px">
+        <div class="card" style="padding:10px"><div class="muted" style="font-size:11px">שווי שוק</div><b>$4.99T</b></div>
+        <div class="card" style="padding:10px"><div class="muted" style="font-size:11px">מכפיל רווח</div><b>38.3</b></div>
+      </div>
+      <div style="position:absolute;bottom:74px;inset-inline:14px;display:flex;gap:8px"><button class="btn sun" style="flex:2">להשקיע</button><button class="btn" style="flex:1;background:#fff;border:1px solid var(--line)">למכור</button></div>
+    </div>
+    <div class="tabbar"><div class="on"><span>🏠</span>בית</div><div><span>🛍️</span>חנות</div><div><span>🔁</span>תוכניות</div><div><span>🎓</span>ללמוד</div><div><span>☰</span>עוד</div></div>
+    </div>
+    <div class="caption"><h3>מה נשאר מהיום</h3><ul style="padding-inline-start:18px"><li>הגרף נעצר ביום הסימולציה</li><li>נתוני חברה מוצגים רק בתיק חי</li><li>"ההיסטוריה שלך עם הנייר" נמצאת בגלילה למטה</li><li>☆ מוסיף לרשימת מעקב (חדש, פשוט)</li></ul></div>
+  </div>
+</section>
+
+<!-- ④ חנות -->
+<section class="page" id="store">
+  <h2>חנות: אוספים לפי נושא (D31)</h2>
+  <p class="lead">כרטיסים צבעוניים לפי נושא. בדף אוסף יש הסבר קצר, הניירות שבו, וביצועים עד יום הסימולציה. אפשר לקנות את כל האוסף בסכום אחד בחלוקה שווה. כל נייר ייבדק מול הנתונים לפני שייכנס.</p>
+  <div class="row">
+    <div class="phone"><div class="scr">
+      <b style="font-size:20px">חנות</b>
+      <input style="width:100%;margin:10px 0;border:0;background:#fff;border-radius:999px;padding:10px 14px;font:inherit" placeholder="🔍 חפש מניה או קרן">
+      <div class="grid2">
+        <div class="coll" style="background:var(--sky-soft)"><span class="ico">🌍</span><div><b>מדדים רחבים</b><div class="muted" style="font-size:11px">6 קרנות · הבסיס</div></div></div>
+        <div class="coll" style="background:var(--plum-soft)"><span class="ico">🤖</span><div><b>בינה מלאכותית</b><div class="muted" style="font-size:11px">8 מניות</div></div></div>
+        <div class="coll" style="background:var(--mint-soft)"><span class="ico">🌱</span><div><b>אנרגיה ירוקה</b><div class="muted" style="font-size:11px">7 מניות</div></div></div>
+        <div class="coll" style="background:var(--coral-soft)"><span class="ico">💊</span><div><b>בריאות ותרופות</b><div class="muted" style="font-size:11px">8 מניות</div></div></div>
+        <div class="coll" style="background:var(--sun-soft)"><span class="ico">🛒</span><div><b>מותגים שאתה מכיר</b><div class="muted" style="font-size:11px">10 מניות</div></div></div>
+        <div class="coll" style="background:#e9f5ff"><span class="ico">🇮🇱</span><div><b>ישראל</b><div class="muted" style="font-size:11px">8 מניות</div></div></div>
+        <div class="coll" style="background:#f3efe6"><span class="ico">💵</span><div><b>דיבידנדים</b><div class="muted" style="font-size:11px">6 מניות וקרנות</div></div></div>
+        <div class="coll" style="background:#eef0f4"><span class="ico">🛡️</span><div><b>אג"ח</b><div class="muted" style="font-size:11px">4 קרנות</div></div></div>
+      </div>
+    </div>
+    <div class="tabbar"><div><span>🏠</span>בית</div><div class="on"><span>🛍️</span>חנות</div><div><span>🔁</span>תוכניות</div><div><span>🎓</span>ללמוד</div><div><span>☰</span>עוד</div></div>
+    </div>
+
+    <div class="phone"><div class="scr">
+      <div style="background:var(--plum-soft);margin:-14px -14px 10px;padding:18px 14px 14px;border-radius:0 0 26px 26px">
+        <span style="font-size:18px">→</span> <span style="font-size:30px;float:left">🤖</span>
+        <b style="font-size:20px;display:block;margin-top:6px">בינה מלאכותית</b>
+        <div style="font-size:12.5px;color:var(--ink-2)">חברות שמפתחות שבבים, ענן ותוכנה לבינה מלאכותית.</div>
+        <div style="margin-top:6px"><span class="pill" style="background:#fff;color:var(--up)">שנה: <span class="num">+24%</span></span> <span class="pill" style="background:#fff">S&amp;P 500: <span class="num">+12%</span></span></div>
+      </div>
+      <div class="card" style="padding:4px 12px">
+        <div class="hold"><div class="logo-dot" style="background:#76b900">N</div><div class="mid"><b>NVIDIA</b><span class="muted" style="font-size:11px">NVDA</span></div><div class="end num up">+41%</div></div>
+        <div class="hold"><div class="logo-dot" style="background:#00a4ef">M</div><div class="mid"><b>Microsoft</b><span class="muted" style="font-size:11px">MSFT</span></div><div class="end num up">+18%</div></div>
+        <div class="hold"><div class="logo-dot" style="background:#4285f4">G</div><div class="mid"><b>Alphabet</b><span class="muted" style="font-size:11px">GOOGL</span></div><div class="end num up">+9%</div></div>
+        <div class="hold"><div class="logo-dot" style="background:#ed1c24">A</div><div class="mid"><b>AMD</b><span class="muted" style="font-size:11px">AMD</span></div><div class="end num down">−6%</div></div>
+      </div>
+      <div class="nudge" style="background:#fff3df;color:#8a5a00">⚖️ <span>אוסף לפי נושא = פיזור בתוך תחום אחד בלבד. <u>📚 שיעור 6</u></span></div>
+      <button class="btn sun" style="width:100%;margin-top:10px">להשקיע באוסף כולו</button>
+      <div class="muted" style="font-size:11px;text-align:center;margin-top:4px">הסכום מתחלק שווה בין כל הניירות</div>
+    </div>
+    <div class="tabbar"><div><span>🏠</span>בית</div><div class="on"><span>🛍️</span>חנות</div><div><span>🔁</span>תוכניות</div><div><span>🎓</span>ללמוד</div><div><span>☰</span>עוד</div></div>
+    </div>
+  </div>
+  <div class="decide"><b>החלטה · האוספים:</b> ההצעה היא 8 אוספים: מדדים רחבים, בינה מלאכותית, אנרגיה ירוקה, בריאות ותרופות, מותגים שאתה מכיר, ישראל, דיבידנדים ואג"ח. הרשימה המדויקת של הניירות תיקבע בבנייה ותיבדק מול הנתונים. במכונת זמן מוצגים רק ניירות שכבר נסחרו באותו תאריך. למשל, ב-2010 לא תופיע מניה שהונפקה ב-2019.</div>
+</section>
+
+<!-- ⑤ תוכנית קבועה -->
+<section class="page" id="plan">
+  <h2>תוכנית השקעה קבועה (D31)</h2>
+  <p class="lead">לשונית "תוכניות" בסרגל התחתון. מגדירים סכום, תדירות וחלוקה באחוזים. כל ביצוע מתועד, ואפשר להשהות או לערוך. התוכנית מחליפה את ההפקדה החודשית הקיימת.</p>
+  <div class="row">
+    <div class="phone"><div class="scr">
+      <b style="font-size:20px">תוכנית חדשה</b>
+      <div class="card" style="margin-top:10px;text-align:center"><div class="muted" style="font-size:12px">כמה להשקיע</div><div class="big num">₪500</div>
+        <div class="seg" style="margin-top:6px"><span>כל שבוע</span><span class="on">כל חודש</span></div>
+        <div class="muted" style="font-size:12px;margin-top:6px">ביום <b>1</b> בחודש</div></div>
+      <div class="card" style="margin-top:10px"><b>במה</b>
+        <div class="alloc"><div class="logo-dot" style="background:#5b8cff;width:30px;height:30px;font-size:10px">VOO</div><span style="width:70px">S&amp;P 500</span><div class="bar"><i style="width:70%;background:var(--sky)"></i></div><b class="num">70%</b></div>
+        <div class="alloc"><div class="logo-dot" style="background:#7b5cff;width:30px;height:30px;font-size:10px">QQQ</div><span style="width:70px">נאסד"ק 100</span><div class="bar"><i style="width:30%;background:var(--plum)"></i></div><b class="num">30%</b></div>
+        <div style="font-size:12px;color:var(--plum);font-weight:600;margin-top:4px">+ להוסיף נייר או אוסף</div>
+      </div>
+      <div class="nudge" style="background:var(--mint-soft);color:#0c6656">🤖 <span>הפקדה קבועה בקרנות רחבות היא הדרך שעובדת לרוב האנשים. <u>📚 שיעור 11</u></span></div>
+      <button class="btn primary" style="width:100%;margin-top:12px">להפעיל תוכנית</button>
+    </div>
+    <div class="tabbar"><div><span>🏠</span>בית</div><div><span>🛍️</span>חנות</div><div class="on"><span>🔁</span>תוכניות</div><div><span>🎓</span>ללמוד</div><div><span>☰</span>עוד</div></div>
+    </div>
+
+    <div class="phone"><div class="scr">
+      <b style="font-size:20px">התוכניות שלי</b>
+      <div class="card" style="margin-top:10px">
+        <div style="display:flex;justify-content:space-between"><b>🔁 חיסכון לטווח ארוך</b><span class="pill" style="background:#e6f6ec;color:var(--up)">פעילה</span></div>
+        <div class="muted" style="font-size:12px">₪500 כל חודש · 70% VOO · 30% QQQ</div>
+        <div style="display:flex;gap:8px;margin-top:10px"><span class="chip">⏸ השהה</span><span class="chip">✏️ ערוך</span></div>
+      </div>
+      <div class="card" style="margin-top:10px"><b>ביצועים אחרונים</b>
+        <div class="hold" style="font-size:12.5px"><div class="mid"><b class="num">1.3.2020</b><span class="muted">0.47 VOO · 0.31 QQQ</span></div><div class="end num">₪500</div></div>
+        <div class="hold" style="font-size:12.5px"><div class="mid"><b class="num">1.2.2020</b><span class="muted">0.44 VOO · 0.29 QQQ</span></div><div class="end num">₪500</div></div>
+        <div class="hold" style="font-size:12.5px"><div class="mid"><b class="num">1.1.2020</b><span class="muted">0.45 VOO · 0.29 QQQ</span></div><div class="end num">₪500</div></div>
+      </div>
+      <div class="card" style="margin-top:10px;background:var(--sun-soft)"><b>סה"כ דרך התוכנית</b><div class="num" style="font-size:22px;font-weight:800">₪1,500 → ₪1,388</div><div class="muted" style="font-size:12px">במרץ, כשהשוק ירד, אותו סכום קנה יותר יחידות</div></div>
+    </div>
+    <div class="tabbar"><div><span>🏠</span>בית</div><div><span>🛍️</span>חנות</div><div class="on"><span>🔁</span>תוכניות</div><div><span>🎓</span>ללמוד</div><div><span>☰</span>עוד</div></div>
+    </div>
+  </div>
+  <div class="decide"><b>החלטה · מאיפה הכסף:</b> ההצעה היא שכל ביצוע של התוכנית מוסיף הפקדה חדשה, "מהמשכורת", כמו הוראת קבע מכרטיס אשראי. אפשרות אחרת: להשקיע מהמזומן שכבר בתיק, בלי הפקדה חדשה. אפשר לבחור לכל תוכנית בנפרד.</div>
+</section>
+
+<!-- ⑥ עוד ומתקדם -->
+<section class="page" id="more">
+  <h2>"עוד", ומצב מתקדם (D32)</h2>
+  <p class="lead">כל מה שלא נכנס לחזית נמצא כאן, וכלום לא נמחק. מתג "מתקדם" מחזיר לטופס הקנייה לימיט, סטופ, קופות נפרדות והמרה ידנית.</p>
+  <div class="row">
+    <div class="phone"><div class="scr">
+      <b style="font-size:20px">עוד</b>
+      <div class="card" style="margin-top:10px;padding:4px 14px">
+        <div class="hold"><span style="font-size:20px">📓</span><div class="mid"><b>יומן</b><span class="muted" style="font-size:12px">עסקאות, בדיקות ודפוסים</span></div><span class="pill" style="background:var(--plum);color:#fff">⏰2</span></div>
+        <div class="hold"><span style="font-size:20px">📈</span><div class="mid"><b>מול המדד</b><span class="muted" style="font-size:12px">הגרף המלא וירידה מהשיא</span></div></div>
+        <div class="hold"><span style="font-size:20px">🥧</span><div class="mid"><b>ניתוח התיק</b><span class="muted" style="font-size:12px">פיזור לפי נייר, מטבע וסקטור</span></div></div>
+        <div class="hold"><span style="font-size:20px">📜</span><div class="mid"><b>היסטוריה ופקודות</b><span class="muted" style="font-size:12px">כולל ביטול פקודות ממתינות</span></div></div>
+        <div class="hold"><span style="font-size:20px">🧾</span><div class="mid"><b>מס ועלויות</b></div></div>
+        <div class="hold"><span style="font-size:20px">📊</span><div class="mid"><b>דו"ח המסע</b><span class="muted" style="font-size:12px">מכונת זמן</span></div></div>
+      </div>
+      <div class="card" style="margin-top:10px;padding:4px 14px">
+        <div class="hold"><span style="font-size:20px">💼</span><div class="mid"><b>התיקים שלי</b><span class="muted" style="font-size:12px">החלפה בין תיקים, תיק חדש</span></div></div>
+        <div class="hold"><span style="font-size:20px">📖</span><div class="mid"><b>מילון</b></div></div>
+        <div class="hold"><span style="font-size:20px">⚙️</span><div class="mid"><b>מצב מתקדם</b><span class="muted" style="font-size:12px">לימיט, סטופ, קופות, המרה ידנית</span></div><span style="width:40px;height:24px;border-radius:12px;background:#ddd6ee;position:relative;display:inline-block"><i style="position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#fff"></i></span></div>
+      </div>
+    </div>
+    <div class="tabbar"><div><span>🏠</span>בית</div><div><span>🛍️</span>חנות</div><div><span>🔁</span>תוכניות</div><div><span>🎓</span>ללמוד</div><div class="on"><span>☰</span>עוד</div></div>
+    </div>
+    <div class="caption">
+      <h3>מפת הניווט החדשה</h3>
+      <ul style="padding-inline-start:18px">
+        <li><b>🏠 בית</b>: שווי, גרף, החזקות, מנטור, שיעור הבא, ופס מכונת הזמן</li>
+        <li><b>🛍️ חנות</b>: חיפוש ואוספים</li>
+        <li><b>🔁 תוכניות</b>: השקעה קבועה</li>
+        <li><b>🎓 ללמוד</b>: 28 השיעורים</li>
+        <li><b>☰ עוד</b>: כל השאר</li>
+      </ul>
+      <p class="muted" style="font-size:12px">פעולות "קנייה" ו"מכירה" זמינות מכל מקום, מכרטיס נייר ומדף נייר.</p>
+    </div>
+  </div>
+  <div class="decide"><b>החלטה · ברירת המחדל של "מתקדם":</b> ההצעה היא שהמתג יהיה כבוי בהתחלה. שיעור 10 (לימיט וסטופ) יציע להדליק אותו.</div>
+</section>
+
+<!-- ⑦ מחשב -->
+<section class="page" id="desk">
+  <h2>במחשב</h2>
+  <p class="lead">אותה אפליקציה, רחבה יותר: תפריט צד במקום סרגל תחתון, ושני טורים. חלון הקנייה נפתח כחלון במרכז המסך.</p>
+  <div class="desk"><div style="display:flex;min-height:520px">
+    <div class="side"><b style="display:block;padding:0 12px 14px;font-size:16px">📈 מסחר־לומד</b><div class="on">🏠 בית</div><div>🛍️ חנות</div><div>🔁 תוכניות</div><div>🎓 ללמוד</div><div>📓 יומן</div><div>☰ עוד</div></div>
+    <div style="flex:1;padding:20px;display:grid;grid-template-columns:3fr 2fr;gap:16px;align-content:start">
+      <div>
+        <div class="timepill" style="display:inline-flex"><span class="play">▶</span>⏳ מכונת זמן · <span class="num">9.3.2020</span> · <span class="pill" style="background:#fff;color:var(--plum)">+שבוע</span></div>
+        <div class="card"><div class="muted" style="font-size:12px">שווי התיק</div><div class="big num">₪54,255</div><span class="pill" style="background:#e6f6ec;color:var(--up)">▲ ₪312 (+0.6%) היום</span>
+          <svg class="spark" viewBox="0 0 300 110" preserveAspectRatio="none" style="height:150px"><polyline points="0,70 40,62 80,66 110,90 140,80 180,55 220,48 260,40 300,30" fill="none" stroke="#7b5cff" stroke-width="3"/></svg>
+          <div class="qa" style="max-width:380px"><div style="background:var(--sun)"><b>＋</b>להשקיע</div><div style="background:var(--mint-soft);color:#0c7a66"><b>🔁</b>תוכנית</div><div style="background:var(--coral-soft);color:#b5401f"><b>🛍️</b>חנות</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="card"><b>ההחזקות</b>
+          <div class="hold"><div class="logo-dot" style="background:#5b8cff">VOO</div><div class="mid"><b>S&amp;P 500</b><span class="muted" style="font-size:12px">72%</span></div><div class="end"><b class="num">₪39,420</b></div></div>
+          <div class="hold"><div class="logo-dot" style="background:#1d1640">A</div><div class="mid"><b>Apple</b><span class="muted" style="font-size:12px">9%</span></div><div class="end"><b class="num">₪4,610</b></div></div>
+        </div>
+        <div class="card" style="margin-top:12px;background:var(--plum);color:#fff"><div style="font-size:12px;opacity:.8">🎓 השיעור הבא</div><b>למה לא מוכרים בפאניקה</b></div>
+        <div class="card" style="margin-top:12px"><b>🤖 המנטור</b><div class="nudge" style="background:#fff3df;color:#8a5a00">⏰ 2 עסקאות מחכות לבדיקה</div></div>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<div class="note">סקיצה 07 · גרסה 2. ההחלטות שנסגרו: D29 קנייה לפי סכום עם שברים, D30 עיצוב צבעוני שבנוי קודם לטלפון, D31 חנות, תוכנית קבועה ועמלות אפליקציה, D32 פשוט בחזית ומתקדם בפנים. הלוגו הצבעוני של מניה הוא עיגול עם אות ראשונה ולא הלוגו האמיתי של החברה, כדי לא להשתמש בסימנים מסחריים.</div>
+</main>
+<script>
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('.page').forEach(p=>p.classList.toggle('on',p.id===b.dataset.p));
+    scrollTo(0,0);
+  });
+</script>
+</body>
+</html>

@@ -147,6 +147,10 @@ CREATE TABLE IF NOT EXISTS journal_notes (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ===== גרסה 2, חבילה 9: שברי מניות (D29) =====
+ALTER TABLE orders ALTER COLUMN qty TYPE DOUBLE PRECISION;
+ALTER TABLE orders ALTER COLUMN fill_qty TYPE DOUBLE PRECISION;
+
 -- ===== חבילה 6: התקדמות בשיעורים (משתמש יחיד) =====
 CREATE TABLE IF NOT EXISTS lesson_progress (
   n            INTEGER PRIMARY KEY,

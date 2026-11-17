@@ -38,7 +38,7 @@ export function fifoCost(pos: Position, qty: number, onD?: string): { costIls: n
     costCcy = 0,
     dayShares = 0;
   for (const lot of pos.lots) {
-    if (left <= 0) break;
+    if (left <= 1e-9) break;
     const take = Math.min(left, lot.qty);
     costIls += (lot.costIls * take) / lot.qty;
     costCcy += (lot.costCcy * take) / lot.qty;
@@ -84,14 +84,14 @@ export function apply(s: State, e: LedgerEntry): void {
       if (!pos) s.positions.set(e.symbol!, (pos = { symbol: e.symbol!, currency: ccy, qty: 0, lots: [] }));
       const costCcy = -(ccy === "USD" ? e.cashUsd : e.cashIls);
       pos.lots.push({ qty: e.qty, costCcy, costIls: e.fxRate ? costCcy * e.fxRate : costCcy, d: e.d });
-      pos.qty += e.qty;
+      pos.qty = Math.round((pos.qty + e.qty) * 1e6) / 1e6;
       s.costs.trade += e.fee;
       break;
     }
     case "sell": {
       const pos = s.positions.get(e.symbol!)!;
       let left = -e.qty;
-      while (left > 0 && pos.lots.length) {
+      while (left > 1e-9 && pos.lots.length) {
         const lot = pos.lots[0];
         const take = Math.min(left, lot.qty);
         if (take === lot.qty) pos.lots.shift();
@@ -101,8 +101,8 @@ export function apply(s: State, e: LedgerEntry): void {
         }
         left -= take;
       }
-      pos.qty += e.qty;
-      if (pos.qty === 0) s.positions.delete(e.symbol!);
+      pos.qty = Math.round((pos.qty + e.qty) * 1e6) / 1e6;
+      if (Math.abs(pos.qty) < 1e-9) s.positions.delete(e.symbol!);
       const t = year(s, e.d);
       t.realized = round2(t.realized + Number(e.meta.gainIls ?? 0));
       t.taxPaid = round2(t.taxPaid + e.tax);
@@ -117,7 +117,7 @@ export function apply(s: State, e: LedgerEntry): void {
       const ratio = Number(e.meta.ratio);
       if (pos) {
         pos.lots = pos.lots.map((l) => ({ ...l, qty: l.qty * ratio }));
-        pos.qty += e.qty;
+        pos.qty = Math.round((pos.qty + e.qty) * 1e6) / 1e6;
         // פיצול הפוך שמשאיר שבר מניה: השבר נמכר במזומן (נרשם ב-cash של הרשומה), ומקטינים את המנה האחרונה
         const excess = pos.lots.reduce((a, l) => a + l.qty, 0) - pos.qty;
         if (excess > 1e-9) {
@@ -126,7 +126,7 @@ export function apply(s: State, e: LedgerEntry): void {
           pos.lots[pos.lots.length - 1] = { ...last, qty: last.qty - excess, costCcy: last.costCcy * k, costIls: last.costIls * k };
           pos.lots = pos.lots.filter((l) => l.qty > 1e-9);
         }
-        if (pos.qty === 0) s.positions.delete(e.symbol!);
+        if (Math.abs(pos.qty) < 1e-9) s.positions.delete(e.symbol!);
       }
       break;
     }

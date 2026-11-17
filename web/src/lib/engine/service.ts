@@ -5,7 +5,7 @@
 import { query, tx, type Stmt } from "../db";
 import { dividends as getDividends, getHistory, getInstrument, getQuote, splits as getSplits, USD_ILS, type LiveQuote } from "../market";
 import { GTC_DAYS, addDays, convert, round2, todayIL, toIls, tradeFee } from "./money";
-import { estimate, fill, makeCtx, processDay, processLive, processRange, triggerOnPrice, validateInput, type Ctx, type Estimate, type OrderInput } from "./process";
+import { availableCash, estimate, fill, makeCtx, processDay, processLive, processRange, push, roundQ, triggerOnPrice, validateInput, type Ctx, type Estimate, type OrderInput } from "./process";
 import { carryLossInto, replay, type State } from "./state";
 import { BENCH, FEE_PRESETS, type Bar, type Benchmark, type Ccy, type FeeProfile, type LedgerEntry, type Market, type MonthlyDeposit, type Order, type Portfolio } from "./types";
 import { CALM, EVENTS, STORMY } from "../timemachine/events";
@@ -340,6 +340,12 @@ async function refQuote(L: Loaded, symbol: string) {
 
 export type QuoteForOrder = Estimate & {
   symbol: string; name: string; marketOpen: boolean; note: string; simDate: string; fx: number; held: number;
+  /** כמה מניות צפוי לקבל (בקנייה לפי סכום) או למכור */
+  qty: number;
+  fxPlan: FxPlan | null;
+  /** אם חסר כסף במטבע המקור של ההמרה */
+  fxShortCcy: Ccy | null;
+  minErr: string | null;
   mentor: { tags: ReasonTag[]; notes: MentorNote[] };
 };
 
@@ -373,7 +379,48 @@ function mentorFor(L: Loaded, kind: string, input: Pick<OrderInput, "side" | "sy
   });
 }
 
-export async function quoteForOrder(id: number, input: Pick<OrderInput, "side" | "symbol" | "qty" | "type" | "price"> & Partial<Pick<OrderInput, "why" | "exitPlan">>): Promise<QuoteForOrder> {
+/** המרה אוטומטית שתתבצע עם הפקודה (D29/D32): ממטבע המקור למטבע הנייר */
+export type FxPlan = { from: Ccy; to: Ccy; amount: number; received: number; fee: number };
+export const MIN_ORDER_USD = 1;
+
+/**
+ * מכין פקודה: מתרגם סכום לתקציב במטבע הנייר (כולל המרה אוטומטית), מעריך עלות,
+ * ובודק כיסוי ומינימום. משמש גם להערכה וגם לשליחה, כדי ששתיהן יחשבו אותו דבר.
+ */
+function prepare(L: Loaded, ccy: Ccy, input: Pick<OrderInput, "side" | "symbol" | "qty" | "amount" | "amountCcy" | "sellAll" | "type" | "price">, refPrice: number) {
+  const fx = L.m.fx(L.p.simDate);
+  const other: Ccy = ccy === "USD" ? "ILS" : "USD";
+  let budget: number | null = null;
+  let fxPlan: FxPlan | null = null;
+  if (input.amount != null && !input.sellAll) {
+    const aCcy = input.amountCcy ?? ccy;
+    if (aCcy === ccy) budget = round2(input.amount);
+    else if (input.side === "buy") {
+      const c = convert(L.p.fees, aCcy, input.amount, fx);
+      fxPlan = { from: aCcy, to: ccy, amount: round2(input.amount), received: c.received, fee: c.fee };
+      budget = c.received;
+    } else budget = round2(aCcy === "ILS" ? input.amount / fx : input.amount * fx); // מכירה: הסכום המבוקש במטבע הנייר
+  }
+  let est = estimate(L.ctx, { ...input, budget }, refPrice);
+  // קנייה לפי כמות בדולרים, כשחסרים דולרים: ממירים אוטומטית את החסר משקלים (עם עמלה ועיגול קטן למעלה)
+  if (input.side === "buy" && !fxPlan && budget == null && est.shortfall > 0) {
+    const need = est.shortfall;
+    const amt = Math.ceil(((ccy === "USD" ? need * fx : need / fx) / (1 - L.p.fees.fxPct / 100)) + 1);
+    const c = convert(L.p.fees, other, amt, fx);
+    fxPlan = { from: other, to: ccy, amount: amt, received: c.received, fee: c.fee };
+  }
+  let fxShort = 0;
+  if (fxPlan) {
+    const srcFree = availableCash(L.ctx, fxPlan.from);
+    fxShort = round2(Math.max(0, fxPlan.amount - srcFree));
+    est = { ...est, available: round2(est.available + fxPlan.received), shortfall: fxShort > 0 ? fxShort : round2(Math.max(0, est.reserve - (est.available + fxPlan.received))) };
+  }
+  const grossUsd = ccy === "USD" ? est.gross : est.gross / fx;
+  const minErr = input.side === "buy" && grossUsd < MIN_ORDER_USD ? `הסכום המינימלי לפקודה הוא $${MIN_ORDER_USD}` : null;
+  return { est, budget, fxPlan, fxShortCcy: fxShort > 0 ? fxPlan!.from : null, minErr, fx };
+}
+
+export async function quoteForOrder(id: number, input: Pick<OrderInput, "side" | "symbol" | "qty" | "type" | "price"> & Partial<Pick<OrderInput, "why" | "exitPlan" | "amount" | "amountCcy" | "sellAll">>): Promise<QuoteForOrder> {
   const meta = await getInstrument(input.symbol);
   if (!meta) throw new UserError("נייר לא נמצא");
   return withLock(id, async () => {
@@ -382,11 +429,11 @@ export async function quoteForOrder(id: number, input: Pick<OrderInput, "side" |
     const ups = await catchUp(L);
     if (ups.length || L.ctx.entries.length) await save(L.ctx, ups);
     const ref = await refQuote(L, meta.symbol);
-    const est = estimate(L.ctx, { ...input, symbol: meta.symbol, qty: Math.max(1, Math.floor(input.qty || 1)) }, ref.price);
+    const pr = prepare(L, meta.currency as Ccy, { ...input, symbol: meta.symbol, qty: input.amount == null && !input.sellAll ? Math.max(0.000001, input.qty || 1) : input.qty }, ref.price);
     return {
-      ...est, symbol: meta.symbol, name: meta.name, marketOpen: ref.open, note: ref.note, simDate: L.p.simDate,
-      fx: L.m.fx(L.p.simDate), held: L.s.positions.get(meta.symbol)?.qty ?? 0,
-      mentor: mentorFor(L, meta.kind, { side: input.side, symbol: meta.symbol, why: input.why ?? "", exitPlan: input.exitPlan ?? null }, est),
+      ...pr.est, symbol: meta.symbol, name: meta.name, marketOpen: ref.open, note: ref.note, simDate: L.p.simDate,
+      fx: pr.fx, held: L.s.positions.get(meta.symbol)?.qty ?? 0, fxPlan: pr.fxPlan, fxShortCcy: pr.fxShortCcy, minErr: pr.minErr,
+      mentor: mentorFor(L, meta.kind, { side: input.side, symbol: meta.symbol, why: input.why ?? "", exitPlan: input.exitPlan ?? null }, pr.est),
     };
   });
 }
@@ -402,20 +449,37 @@ export async function placeOrder(id: number, input: OrderInput): Promise<Order> 
     const L = await load(id, [symbol, BENCH[p0.benchmark].index]);
     const ups = await catchUp(L);
     const ref = await refQuote(L, symbol);
-    const est = estimate(L.ctx, { ...input, symbol }, ref.price);
+    const ccy = meta.currency as Ccy;
+    const { est, budget, fxPlan, fxShortCcy, minErr, fx } = prepare(L, ccy, { ...input, symbol }, ref.price);
     const mentor = mentorFor(L, meta.kind, { ...input, symbol }, est);
+    if (minErr) throw new UserError(minErr);
     if (est.shortfall > 0) {
+      const name = (c: Ccy) => (c === "USD" ? "דולרים" : "שקלים");
       throw new UserError(
         input.side === "buy"
-          ? `אין מספיק ${est.currency === "USD" ? "דולרים" : "שקלים"} פנויים: צריך ${est.reserve}, פנויים ${est.available}`
+          ? fxShortCcy
+            ? `אין מספיק ${name(fxShortCcy)} פנויים להמרה: חסרים ${est.shortfall}`
+            : `אין מספיק ${name(est.currency)} פנויים: צריך ${est.reserve}, פנויים ${est.available}`
           : `אין מספיק מניות פנויות: יש ${est.available}`,
       );
     }
     const created = L.p.mode === "time" ? L.p.simDate : todayIL();
+    // המרה אוטומטית: נרשמת ביומן לפני הפקודה, כדי שהכסף יהיה בקופה הנכונה
+    if (fxPlan) {
+      push(L.ctx, {
+        d: created, kind: "fx", symbol: null, qty: 0, price: null,
+        cashIls: fxPlan.from === "ILS" ? -fxPlan.amount : fxPlan.received,
+        cashUsd: fxPlan.from === "USD" ? -fxPlan.amount : fxPlan.received,
+        fee: round2(fxPlan.from === "USD" ? fxPlan.fee * fx : fxPlan.fee), tax: 0, fxRate: fx, orderId: null,
+        meta: { from: fxPlan.from, amount: fxPlan.amount, received: fxPlan.received, feeNative: fxPlan.fee, auto: true },
+      });
+    }
     const activeFrom = L.p.mode === "time" ? addDays(created, 1) : ref.open || ref.beforeOpen ? created : addDays(created, 1);
     const o: Order = {
       id: await newOrderId(), portfolioId: id, createdD: created, activeFrom, liveToday: L.p.mode === "live" && ref.open,
-      side: input.side, symbol, currency: est.currency, qty: input.qty, budget: null, type: input.type,
+      side: input.side, symbol, currency: est.currency, type: input.type,
+      // לפי סכום: הכמות נקבעת בביצוע. "מכור הכול": הכמות היא כל מה שפנוי עכשיו
+      qty: budget != null ? null : input.sellAll ? est.qty : roundQ(input.qty!), budget,
       price: input.type === "market" ? null : round2(input.price!), validity: input.validity,
       expiresD: input.validity === "gtc" ? addDays(created, GTC_DAYS) : null, status: "pending", reason: null,
       filledD: null, fillPrice: null, fillQty: null, reserved: input.side === "buy" ? est.reserve : 0,

@@ -44,7 +44,7 @@ export default function PortfolioScreen() {
   const [tab, setTabState] = useState<Tab>(() => (sp.get("tab") as Tab) || "overview");
   const [prefill, setPrefill] = useState<OrderPrefill | null>(() => {
     const symbol = sp.get("symbol");
-    return symbol ? { side: sp.get("side") === "sell" ? "sell" : "buy", symbol, qty: Number(sp.get("qty") ?? 1) || 1 } : null;
+    return symbol ? { side: sp.get("side") === "sell" ? "sell" : "buy", symbol, qty: sp.get("qty") ? Number(sp.get("qty")) || undefined : undefined } : null;
   });
   const [fxPrefill, setFxPrefill] = useState<number | null>(null);
   const [orderKey, setOrderKey] = useState(0);
@@ -121,7 +121,7 @@ export default function PortfolioScreen() {
   const active = mainOf(tab);
   const goMain = (k: (typeof MAIN)[number]["k"]) => setTab(k === "more" ? (active === "more" ? tab : "cash") : k);
   const trade = (side: "buy" | "sell", symbol: string, qty?: number) => {
-    setPrefill({ side, symbol, qty: qty ?? 1 });
+    setPrefill({ side, symbol, qty });
     setTab("order");
   };
 

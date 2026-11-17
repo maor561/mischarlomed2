@@ -8,7 +8,7 @@
  */
 import { GTC_DAYS, RESERVE_BUFFER, TAX_RATE, addDays, convert, daysInMonth, round2, tradeFee } from "./money";
 import { apply, eventKey, fifoCost, taxDelta, type State } from "./state";
-import type { Bar, Ccy, LedgerEntry, Market, Order, OrderType, Portfolio } from "./types";
+import type { Bar, Ccy, FeeProfile, LedgerEntry, Market, Order, OrderType, Portfolio } from "./types";
 
 export type Ctx = {
   p: Portfolio;
@@ -25,7 +25,7 @@ export function makeCtx(p: Portfolio, s: State, m: Market, pending: Order[]): Ct
   return { p, s, m, orders: pending, entries: [], newOrders: [], touched: new Set(), nextTempId: -1 };
 }
 
-function push(ctx: Ctx, e: Omit<LedgerEntry, "portfolioId">) {
+export function push(ctx: Ctx, e: Omit<LedgerEntry, "portfolioId">) {
   const full = { ...e, portfolioId: ctx.p.id };
   apply(ctx.s, full);
   ctx.entries.push(full);
@@ -80,11 +80,18 @@ function close(ctx: Ctx, o: Order, status: Order["status"], reason: string | nul
   ctx.touched.add(o);
 }
 
-/** כמה מניות שלמות אפשר לקנות בסכום, כולל עמלה */
-export function sharesForBudget(ctx: Ctx, ccy: Ccy, budget: number, price: number): number {
-  let q = Math.floor(budget / price);
-  while (q > 0 && q * price + tradeFee(ctx.p.fees, ccy, q * price) > budget) q--;
-  return q;
+/** כמות מניות: עד 6 ספרות אחרי הנקודה (שברי מניות, D29) */
+export const roundQ = (x: number) => Math.round(x * 1e6) / 1e6;
+
+/** כמה אפשר לקנות (ברוטו, לפני עמלה) בתקציב נתון, כך שקנייה + עמלה ≤ תקציב */
+export function grossForBudget(fees: FeeProfile, ccy: Ccy, budget: number): number {
+  if (!(budget > 0)) return 0;
+  const [pct, min] = ccy === "USD" ? [fees.usPct, fees.usMin] : [fees.ilPct, fees.ilMin];
+  let g = budget / (1 + pct / 100);
+  if ((g * pct) / 100 < min) g = budget - min; // העמלה המינימלית קובעת
+  g = Math.floor(g * 100) / 100;
+  while (g > 0 && g + tradeFee(fees, ccy, g) > budget + 1e-9) g = Math.round((g - 0.01) * 100) / 100;
+  return Math.max(0, g);
 }
 
 export function fill(ctx: Ctx, o: Order, d: string, rawPrice: number): void {
@@ -95,8 +102,9 @@ export function fill(ctx: Ctx, o: Order, d: string, rawPrice: number): void {
 
   if (o.side === "buy") {
     const avail = availableCash(ctx, ccy, o);
-    const qty = o.qty ?? sharesForBudget(ctx, ccy, Math.min(o.budget ?? 0, avail), price);
-    if (qty < 1) return close(ctx, o, "rejected", "הסכום לא מספיק למניה אחת");
+    // לפי סכום (D29): הכמות נקבעת בביצוע, לפי המחיר בפועל, כולל שבר מניה
+    const qty = o.qty ?? roundQ(grossForBudget(ctx.p.fees, ccy, Math.min(o.budget ?? 0, avail)) / price);
+    if (!(qty > 0) || qty * price < 0.01) return close(ctx, o, "rejected", "הסכום קטן מדי לקנייה");
     const gross = round2(qty * price);
     const fee = tradeFee(ctx.p.fees, ccy, gross);
     const cost = round2(gross + fee);
@@ -111,8 +119,11 @@ export function fill(ctx: Ctx, o: Order, d: string, rawPrice: number): void {
     return close(ctx, o, "filled", null);
   }
 
-  const qty = o.qty!;
-  if (qty > availableShares(ctx, o.symbol, o)) return close(ctx, o, "rejected", "אין מספיק מניות בתיק");
+  // מכירה לפי סכום: כמה מניות שווים הסכום במחיר הביצוע (לכל היותר מה שיש)
+  const free = availableShares(ctx, o.symbol, o);
+  const qty = o.qty ?? Math.min(free, roundQ((o.budget ?? 0) / price));
+  if (!(qty > 0)) return close(ctx, o, "rejected", "אין מה למכור");
+  if (qty > free + 1e-9) return close(ctx, o, "rejected", "אין מספיק מניות בתיק");
   const pos = ctx.s.positions.get(o.symbol)!;
   const gross = round2(qty * price);
   const fee = tradeFee(ctx.p.fees, ccy, gross);
@@ -162,9 +173,9 @@ function splits(ctx: Ctx, d: string) {
     if (!r) continue;
     const pos = ctx.s.positions.get(sym);
     if (pos && !ctx.s.done.has(eventKey("split", sym, d))) {
-      const exact = pos.qty * r;
-      const newQty = Math.floor(exact + 1e-9);
-      const lieu = round2((exact - newQty) * (ctx.m.closeOn(sym, d) ?? 0));
+      // עם שברי מניות (D29) הכמות פשוט מוכפלת, בלי "שבר במזומן"
+      const newQty = roundQ(pos.qty * r);
+      const lieu = 0;
       push(ctx, {
         d, kind: "split", symbol: sym, qty: newQty - pos.qty, price: null,
         cashIls: pos.currency === "ILS" ? lieu : 0, cashUsd: pos.currency === "USD" ? lieu : 0,
@@ -174,7 +185,7 @@ function splits(ctx: Ctx, d: string) {
     // פקודות ממתינות מותאמות לפיצול, כמו אצל ברוקר אמיתי
     for (const o of pending(ctx)) {
       if (o.symbol !== sym || o.createdD >= d || o.splitsApplied.includes(d)) continue;
-      if (o.qty != null) o.qty = Math.max(1, Math.floor(o.qty * r));
+      if (o.qty != null) o.qty = roundQ(o.qty * r);
       if (o.price != null) o.price = round2(o.price / r);
       o.splitsApplied = [...o.splitsApplied, d];
       ctx.touched.add(o);
@@ -276,7 +287,14 @@ export function processLive(ctx: Ctx, today: string) {
 export type OrderInput = {
   side: "buy" | "sell";
   symbol: string;
-  qty: number;
+  /** כמות מניות (גם שבר). אם ריק, משתמשים ב-amount */
+  qty?: number | null;
+  /** סכום להשקעה או למכירה (D29) */
+  amount?: number | null;
+  /** המטבע של הסכום. אם שונה ממטבע הנייר, מומר אוטומטית בשליחה */
+  amountCcy?: Ccy;
+  /** מכירה של כל ההחזקה */
+  sellAll?: boolean;
   type: OrderType;
   price: number | null;
   validity: "day" | "gtc";
@@ -295,24 +313,44 @@ export type Estimate = {
   shortfall: number; // כמה חסר (במטבע הנייר), 0 אם מספיק
 };
 
-export function estimate(ctx: Ctx, input: Pick<OrderInput, "side" | "symbol" | "qty" | "type" | "price">, refPrice: number): Estimate {
+/** budget: סכום במטבע הנייר (אחרי המרה), כשהפקודה לפי סכום */
+export function estimate(
+  ctx: Ctx,
+  input: Pick<OrderInput, "side" | "symbol" | "qty" | "type" | "price" | "sellAll"> & { budget?: number | null },
+  refPrice: number,
+): Estimate & { qty: number } {
   const ccy = ctx.m.currency(input.symbol);
   // בלימיט/סטופ מעריכים לפי המחיר שנקבע, כי זה המחיר הצפוי
   const px = input.type === "market" || input.price == null ? refPrice : input.price;
-  const gross = round2(input.qty * px);
-  const fee = tradeFee(ctx.p.fees, ccy, gross);
+  const freeShares = availableShares(ctx, input.symbol);
   if (input.side === "buy") {
+    const available = availableCash(ctx, ccy);
+    if (input.budget != null) {
+      // לפי סכום: שומרים בדיוק את הסכום, והכמות נגזרת ממנו
+      const gross = grossForBudget(ctx.p.fees, ccy, input.budget);
+      const fee = tradeFee(ctx.p.fees, ccy, gross);
+      const reserve = round2(input.budget);
+      return { refPrice, currency: ccy, gross, fee, total: reserve, reserve, available, shortfall: round2(Math.max(0, reserve - available)), qty: roundQ(gross / px) };
+    }
+    const qty = roundQ(input.qty ?? 0);
+    const gross = round2(qty * px);
+    const fee = tradeFee(ctx.p.fees, ccy, gross);
     const total = round2(gross + fee);
     const reserve = round2(input.type === "limit" ? total : total * (1 + RESERVE_BUFFER));
-    const available = availableCash(ctx, ccy);
-    return { refPrice, currency: ccy, gross, fee, total, reserve, available, shortfall: round2(Math.max(0, reserve - available)) };
+    return { refPrice, currency: ccy, gross, fee, total, reserve, available, shortfall: round2(Math.max(0, reserve - available)), qty };
   }
-  const available = availableShares(ctx, input.symbol);
-  return { refPrice, currency: ccy, gross, fee, total: round2(gross - fee), reserve: 0, available, shortfall: Math.max(0, input.qty - available) };
+  const qty = input.sellAll ? freeShares : input.budget != null ? Math.min(freeShares, roundQ(input.budget / px)) : roundQ(input.qty ?? 0);
+  const gross = round2(qty * px);
+  const fee = tradeFee(ctx.p.fees, ccy, gross);
+  const wanted = input.budget != null ? roundQ(input.budget / px) : qty;
+  return { refPrice, currency: ccy, gross, fee, total: round2(gross - fee), reserve: 0, available: freeShares, shortfall: roundQ(Math.max(0, wanted - freeShares)), qty };
 }
 
 export function validateInput(i: OrderInput): string | null {
-  if (!Number.isInteger(i.qty) || i.qty < 1) return "הכמות חייבת להיות מספר שלם של מניות (לפחות 1)";
+  const byAmount = i.amount != null;
+  if (byAmount && !(i.amount! > 0)) return "הסכום חייב להיות חיובי";
+  if (!byAmount && !i.sellAll && !(i.qty != null && i.qty > 0)) return "צריך כמות או סכום";
+  if (!byAmount && i.qty != null && roundQ(i.qty) !== i.qty) return "עד 6 ספרות אחרי הנקודה בכמות";
   if (i.type !== "market" && !(i.price != null && i.price > 0)) return "צריך לקבוע מחיר לפקודת לימיט או סטופ";
   if (!i.why || i.why.trim().length < 3) return "צריך לכתוב למה (לפחות כמה מילים). נחזור לזה ביומן";
   return null;

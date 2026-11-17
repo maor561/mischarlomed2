@@ -131,7 +131,22 @@ function partA() {
   processRange(c7, "2024-01-01", "2024-02-02");
   const buy7 = c7.entries.find((e) => e.kind === "buy");
   // 1000 ₪ − 0.2% = 998 → $249.50. 2 מניות × 100 + עמלה $2 = $202
-  check("הוראת קבע: המרה ל-$249.50 וקנייה של 2 מניות", buy7?.qty === 2 && near(c7.s.cash.USD, 47.5), `${buy7?.qty} מניות, נשאר $${c7.s.cash.USD}`);
+  // שברי מניות (D29): $249.50 − עמלת מינימום $2 = $247.50 → 2.475 מניות, וכל הסכום מושקע
+  check("הוראת קבע: המרה ל-$249.50 וקנייה של 2.475 מניות", buy7?.qty === 2.475 && near(c7.s.cash.USD, 0), `${buy7?.qty} מניות, נשאר $${c7.s.cash.USD}`);
+
+  // 7ב. שברי מניות: קנייה לפי סכום, מכירה לפי סכום, ופיצול של כמות שבורה
+  const m7b = synthMarket({ bars: { X: { "2024-01-02": { open: 300 }, "2024-01-03": { open: 320 }, "2024-01-04": { open: 330 } } }, splits: { X: { "2024-01-04": 3 } } });
+  const b1 = order({ qty: null, budget: 1000, activeFrom: "2024-01-02", validity: "day", reserved: 1000 });
+  const c7b = ctxWith(m7b, 1000, [b1]);
+  processRange(c7b, "2024-01-01", "2024-01-02");
+  // עמלה 0.1% מינימום 5 → ברוטו 995 → 3.316667 מניות
+  check("קנייה לפי סכום ₪1,000 → 3.316667 מניות", b1.status === "filled" && b1.fillQty === 3.316667 && near(c7b.s.cash.ILS, 0, 0.02), `${b1.fillQty} · נשאר ₪${c7b.s.cash.ILS}`);
+  const s1 = order({ side: "sell", qty: null, budget: 640, activeFrom: "2024-01-03", validity: "day" });
+  c7b.orders.push(s1);
+  processRange(c7b, "2024-01-02", "2024-01-03");
+  check("מכירה לפי סכום ₪640 → 2 מניות", s1.status === "filled" && s1.fillQty === 2, `${s1.fillQty}`);
+  processRange(c7b, "2024-01-03", "2024-01-04");
+  check("פיצול 3:1 של 1.316667 → 3.950001", c7b.s.positions.get("X")?.qty === 3.950001, String(c7b.s.positions.get("X")?.qty));
 
   // 8. אין מספיק כסף ביום הביצוע
   const m8 = synthMarket({ bars: { X: { "2024-01-02": { open: 200 } } } });
@@ -221,6 +236,27 @@ async function partB() {
     blocked = e instanceof svc.UserError;
   }
   check("אי אפשר למכור מניה שאין", blocked);
+
+  // שברי מניות דרך השירות: ₪1,000 על AAPL, עם המרה אוטומטית לדולרים
+  const id2 = await svc.createPortfolio({ name: "בדיקת סכום", mode: "time", startDate: "2020-02-03", capital: 10000, fees: FEE_PRESETS.online, deposit: null });
+  const q2 = await svc.quoteForOrder(id2, { side: "buy", symbol: "AAPL", qty: null, amount: 1000, amountCcy: "ILS", type: "market", price: null });
+  check("הערכה לפי סכום: המרה אוטומטית + כמות שבורה", !!q2.fxPlan && q2.fxPlan.from === "ILS" && q2.qty > 0.8 && q2.qty < 1, `$${q2.fxPlan?.received} → ${q2.qty} מניות`);
+  const o2 = await svc.placeOrder(id2, { side: "buy", symbol: "AAPL", qty: null, amount: 1000, amountCcy: "ILS", type: "market", price: null, validity: "day", why: "בדיקת קנייה לפי סכום", exitPlan: null });
+  await svc.advance(id2, "2020-02-05");
+  const v2 = await svc.view(id2);
+  const aapl2 = v2.positions.find((x) => x.symbol === "AAPL");
+  check("נקנה שבר מניה של AAPL בכל הסכום", o2.budget != null && !!aapl2 && aapl2.qty > 0.8 && aapl2.qty < 1 && near(v2.cash.USD, 0, 0.02), `${aapl2?.qty} מניות, נשאר $${v2.cash.USD}`);
+  let tooSmall = false;
+  try {
+    await svc.placeOrder(id2, { side: "buy", symbol: "AAPL", qty: null, amount: 2, amountCcy: "ILS", type: "market", price: null, validity: "day", why: "סכום קטן מדי", exitPlan: null });
+  } catch (e) {
+    tooSmall = (e as Error).message.includes("מינימלי");
+  }
+  check("מינימום $1 לפקודה", tooSmall);
+  await svc.placeOrder(id2, { side: "sell", symbol: "AAPL", sellAll: true, type: "market", price: null, validity: "day", why: "מכור הכול", exitPlan: null });
+  await svc.advance(id2, "2020-02-07");
+  check("מכור הכול מרוקן את ההחזקה", (await svc.view(id2)).positions.length === 0);
+  await svc.deletePortfolio(id2);
 
   let future = false;
   try {
